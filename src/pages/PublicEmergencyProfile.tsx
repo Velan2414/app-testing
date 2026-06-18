@@ -908,8 +908,8 @@ export const PublicEmergencyProfile: React.FC = () => {
           <div className="relative">
             {/* Lock Overlay (Frosted glass blur + security shield + verification input) */}
             {isProfileLocked && (
-              <div className="absolute inset-0 bg-[#F4F6FB]/85 backdrop-blur-md rounded-xl z-45 flex flex-col items-center justify-center p-6 text-center animate-fade-in no-print">
-                <div className="bg-white border border-[#E0E6EF] rounded-2xl shadow-xl p-6 sm:p-8 max-w-md w-full space-y-6 animate-zoom-in">
+              <div className="fixed inset-0 bg-[#F4F6FB]/95 backdrop-blur-md z-50 flex items-center justify-center p-4 text-center animate-fade-in no-print overflow-y-auto">
+                <div className="bg-white border border-[#E0E6EF] rounded-2xl shadow-xl p-6 sm:p-8 max-w-md w-full my-auto space-y-6 animate-zoom-in">
                   
                   {/* Icon */}
                   <div className="w-16 h-16 bg-red-50 text-red-500 rounded-full flex items-center justify-center mx-auto shadow-inner">

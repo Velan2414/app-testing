@@ -298,7 +298,7 @@ export const MyQR: React.FC = () => {
                 return (
                   <div
                     key={section.key}
-                    className={`flex items-start gap-3 py-3 transition-all duration-300 ${idx < privacySections.length - 1 ? 'border-b border-outline-variant/15' : ''}`}
+                    className={`flex items-center gap-3 py-3 transition-all duration-300 ${idx < privacySections.length - 1 ? 'border-b border-outline-variant/15' : ''}`}
                   >
                     {/* Icon */}
                     <div className={`w-8 h-8 rounded-lg flex items-center justify-center shrink-0 transition-all duration-300 ${
@@ -309,23 +309,9 @@ export const MyQR: React.FC = () => {
 
                     {/* Content */}
                     <div className="flex-1 min-w-0">
-                      <div className="flex items-center justify-between gap-2">
-                        <span className={`text-xs font-semibold transition-colors duration-300 ${isOn ? 'text-on-surface' : 'text-outline'}`}>
-                          {section.label}
-                        </span>
-                        {/* Toggle Switch */}
-                        <button
-                          onClick={() => handlePrivacyToggle(section.key)}
-                          className={`relative w-11 h-6 rounded-full transition-all duration-300 shrink-0 focus:outline-none cursor-pointer ${
-                            isOn ? 'bg-emerald-500 shadow-[0_0_10px_rgba(16,185,129,0.4)]' : 'bg-surface-container-highest'
-                          }`}
-                          title={isOn ? 'Click to hide from report' : 'Click to show in report'}
-                        >
-                          <div className={`absolute top-0.5 w-5 h-5 rounded-full bg-white shadow-sm transition-all duration-300 ${
-                            isOn ? 'left-[22px]' : 'left-0.5'
-                          }`} />
-                        </button>
-                      </div>
+                      <span className={`text-xs font-semibold block transition-colors duration-300 ${isOn ? 'text-on-surface' : 'text-outline'}`}>
+                        {section.label}
+                      </span>
                       {/* Preview text */}
                       <p className={`text-[10px] mt-0.5 leading-tight truncate transition-all duration-300 ${
                         isOn ? 'text-on-surface-variant' : 'text-outline/60 italic'
@@ -343,6 +329,19 @@ export const MyQR: React.FC = () => {
                         )}
                       </p>
                     </div>
+
+                    {/* Toggle Switch - positioned directly as row child so it never wraps down */}
+                    <button
+                      onClick={() => handlePrivacyToggle(section.key)}
+                      className={`relative w-11 h-6 rounded-full transition-all duration-300 shrink-0 focus:outline-none cursor-pointer ${
+                        isOn ? 'bg-emerald-500 shadow-[0_0_10px_rgba(16,185,129,0.4)]' : 'bg-surface-container-highest'
+                      }`}
+                      title={isOn ? 'Click to hide from report' : 'Click to show in report'}
+                    >
+                      <div className={`absolute top-0.5 w-5 h-5 rounded-full bg-white shadow-sm transition-all duration-300 ${
+                        isOn ? 'left-[22px]' : 'left-0.5'
+                      }`} />
+                    </button>
                   </div>
                 );
               })}

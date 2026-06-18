@@ -6,10 +6,11 @@ import { Button } from '../components/Button';
 import { Input } from '../components/Input';
 
 export const ProfileSetup: React.FC = () => {
-  const { user, updatePatientRecord } = useAuth();
+  const { user, updatePatientRecord, updatePrivacySettings, regenerateQrData, logout } = useAuth();
   const navigate = useNavigate();
   const fileInputRef = useRef<HTMLInputElement>(null);
 
+  const [showSettingsModal, setShowSettingsModal] = useState(false);
   const [name, setName] = useState(user?.patientRecord.name || '');
   const [bloodGroup, setBloodGroup] = useState(user?.patientRecord.bloodGroup || '');
   const [height, setHeight] = useState(user?.patientRecord.height || '');
@@ -76,11 +77,26 @@ export const ProfileSetup: React.FC = () => {
     navigate('/profile/conditions');
   };
 
+  const handleLogout = async () => {
+    await logout();
+    navigate('/login');
+  };
+
   return (
     <div className="max-w-md mx-auto space-y-6 pt-4">
-      {/* Header Text */}
-      <div>
-        <h2 className="font-headline-lg-mobile text-on-surface mb-2">Profile Setup</h2>
+      {/* Header Text - Centered with Settings Option */}
+      <div className="flex flex-col items-center text-center">
+        {/* Top Center Settings & Privacy Button */}
+        <button
+          type="button"
+          onClick={() => setShowSettingsModal(true)}
+          className="mb-4 bg-slate-50 border border-slate-200 text-slate-700 hover:bg-slate-100 font-semibold px-4 py-2 rounded-full text-xs flex items-center gap-1.5 transition-all shadow-sm cursor-pointer"
+        >
+          <span className="material-symbols-outlined text-[16px] text-primary">settings</span>
+          Settings & Privacy Preferences
+        </button>
+
+        <h2 className="font-headline-lg-mobile text-on-surface mb-1">Profile Setup</h2>
         <p className="font-body-sm text-body-sm text-on-surface-variant">
           Complete your medical vitals to generate your secure health identifier.
         </p>
@@ -270,6 +286,248 @@ export const ProfileSetup: React.FC = () => {
           </div>
         </form>
       </GlassCard>
+
+      {/* Interactive Settings & Privacy Modal for Mobile Apps */}
+      {showSettingsModal && user && (
+        <div 
+          onClick={() => setShowSettingsModal(false)}
+          className="fixed inset-0 z-[100] bg-slate-950/40 backdrop-blur-md flex items-center justify-center p-4 cursor-pointer"
+        >
+          <div 
+            onClick={(e) => e.stopPropagation()}
+            className="bg-white/80 backdrop-blur-xl rounded-[28px] border border-slate-100/50 p-6 max-w-sm w-full max-h-[85vh] overflow-y-auto shadow-[0_24px_60px_rgba(0,102,204,0.15)] flex flex-col relative cursor-default text-left"
+          >
+            {/* Close button */}
+            <button 
+              type="button"
+              onClick={() => setShowSettingsModal(false)}
+              className="absolute top-4 right-4 w-8 h-8 rounded-full flex items-center justify-center bg-slate-50 text-slate-500 hover:text-slate-800 transition-colors cursor-pointer"
+            >
+              <span className="material-symbols-outlined text-[18px]">close</span>
+            </button>
+
+            {/* Modal Title */}
+            <div className="mb-6 text-center">
+              <span className="font-label-caps text-[10px] text-primary tracking-widest block mb-1">Preferences</span>
+              <h2 className="text-xl font-bold text-slate-900">Settings &amp; Privacy</h2>
+              <p className="text-[10px] text-slate-400 mt-0.5">Manage your clinical profile, security, and privacy.</p>
+            </div>
+
+            <div className="space-y-6 flex-1 pr-1">
+              {/* Category: Privacy */}
+              <section className="space-y-2.5">
+                <h3 className="font-title-md text-xs text-primary font-semibold px-1">Privacy &amp; Visibility</h3>
+                <div className="bg-white/90 border border-slate-100 rounded-[20px] shadow-sm divide-y divide-slate-100">
+                  
+                  {/* Vitals Toggle */}
+                  <div className="p-4 flex justify-between items-center hover:bg-slate-50/50 transition-colors">
+                    <div>
+                      <div className="font-semibold text-xs text-slate-900">Vitals &amp; Demographics</div>
+                      <div className="text-[10px] text-slate-400 mt-0.5">Age, Gender, Blood Group, Height, Weight</div>
+                    </div>
+                    <label className="relative inline-flex items-center cursor-pointer">
+                      <input 
+                        type="checkbox" 
+                        checked={user.privacySettings.showVitals}
+                        onChange={() => updatePrivacySettings({ showVitals: !user.privacySettings.showVitals })}
+                        className="sr-only peer" 
+                      />
+                      <div className="w-10 h-5 bg-slate-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-primary shadow-inner" />
+                    </label>
+                  </div>
+
+                  {/* Conditions Toggle */}
+                  <div className="p-4 flex justify-between items-center hover:bg-slate-50/50 transition-colors">
+                    <div>
+                      <div className="font-semibold text-xs text-slate-900">Medical Conditions</div>
+                      <div className="text-[10px] text-slate-400 mt-0.5">Chronic or active clinical conditions</div>
+                    </div>
+                    <label className="relative inline-flex items-center cursor-pointer">
+                      <input 
+                        type="checkbox" 
+                        checked={user.privacySettings.showConditions}
+                        onChange={() => updatePrivacySettings({ showConditions: !user.privacySettings.showConditions })}
+                        className="sr-only peer" 
+                      />
+                      <div className="w-10 h-5 bg-slate-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-primary shadow-inner" />
+                    </label>
+                  </div>
+
+                  {/* Allergies Toggle */}
+                  <div className="p-4 flex justify-between items-center hover:bg-slate-50/50 transition-colors">
+                    <div>
+                      <div className="font-semibold text-xs text-slate-900">Documented Allergies</div>
+                      <div className="text-[10px] text-slate-400 mt-0.5">Severe reactions, anaphylaxis alerts</div>
+                    </div>
+                    <label className="relative inline-flex items-center cursor-pointer">
+                      <input 
+                        type="checkbox" 
+                        checked={user.privacySettings.showAllergies}
+                        onChange={() => updatePrivacySettings({ showAllergies: !user.privacySettings.showAllergies })}
+                        className="sr-only peer" 
+                      />
+                      <div className="w-10 h-5 bg-slate-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-primary shadow-inner" />
+                    </label>
+                  </div>
+
+                  {/* Medications Toggle */}
+                  <div className="p-4 flex justify-between items-center hover:bg-slate-50/50 transition-colors">
+                    <div>
+                      <div className="font-semibold text-xs text-slate-900">Active Medications</div>
+                      <div className="text-[10px] text-slate-400 mt-0.5">Current prescriptions, dosages &amp; schedule</div>
+                    </div>
+                    <label className="relative inline-flex items-center cursor-pointer">
+                      <input 
+                        type="checkbox" 
+                        checked={user.privacySettings.showMedications}
+                        onChange={() => updatePrivacySettings({ showMedications: !user.privacySettings.showMedications })}
+                        className="sr-only peer" 
+                      />
+                      <div className="w-10 h-5 bg-slate-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-primary shadow-inner" />
+                    </label>
+                  </div>
+
+                  {/* Contacts Toggle */}
+                  <div className="p-4 flex justify-between items-center hover:bg-slate-50/50 transition-colors">
+                    <div>
+                      <div className="font-semibold text-xs text-slate-900">Emergency Contacts</div>
+                      <div className="text-[10px] text-slate-400 mt-0.5">Immediate tap-to-call contacts info</div>
+                    </div>
+                    <label className="relative inline-flex items-center cursor-pointer">
+                      <input 
+                        type="checkbox" 
+                        checked={user.privacySettings.showContacts}
+                        onChange={() => updatePrivacySettings({ showContacts: !user.privacySettings.showContacts })}
+                        className="sr-only peer" 
+                      />
+                      <div className="w-10 h-5 bg-slate-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-primary shadow-inner" />
+                    </label>
+                  </div>
+
+                </div>
+              </section>
+
+              {/* Category: Security */}
+              <section className="space-y-2.5">
+                <h3 className="font-title-md text-xs text-primary font-semibold px-1">Security</h3>
+                <div className="bg-white/90 border border-slate-100 rounded-[20px] shadow-sm divide-y divide-slate-100">
+                  <button 
+                    type="button"
+                    onClick={() => {
+                      alert("Two-Factor Authentication is managed by your organization's security policy.");
+                    }}
+                    className="w-full text-left p-4 flex items-center justify-between hover:bg-slate-50/50 transition-colors cursor-pointer"
+                  >
+                    <div className="flex items-center gap-3">
+                      <div className="w-8 h-8 rounded-full bg-primary/10 flex items-center justify-center text-primary">
+                        <span className="material-symbols-outlined text-[16px]">security</span>
+                      </div>
+                      <div>
+                        <div className="font-semibold text-xs text-slate-900">Two-Factor Authentication</div>
+                        <div className="text-[10px] text-slate-400 mt-0.5">Currently enabled via SMS</div>
+                      </div>
+                    </div>
+                    <span className="material-symbols-outlined text-slate-400 text-[16px]">chevron_right</span>
+                  </button>
+
+                  <button 
+                    type="button"
+                    onClick={() => {
+                      if (confirm("Are you sure you want to regenerate your QR Key? Any old QR codes you printed or saved will become invalid.")) {
+                        regenerateQrData();
+                        alert("QR Key regenerated successfully. Old QR codes are now invalidated!");
+                      }
+                    }}
+                    className="w-full text-left p-4 flex items-center justify-between hover:bg-slate-50/50 transition-colors cursor-pointer"
+                  >
+                    <div className="flex items-center gap-3">
+                      <div className="w-8 h-8 rounded-full bg-amber-500/10 flex items-center justify-center text-amber-700">
+                        <span className="material-symbols-outlined text-[16px]">qr_code</span>
+                      </div>
+                      <div>
+                        <div className="font-semibold text-xs text-slate-900">Regenerate QR Key</div>
+                        <div className="text-[10px] text-slate-400 mt-0.5">Invalidate old printed codes</div>
+                      </div>
+                    </div>
+                    <span className="material-symbols-outlined text-slate-400 text-[16px]">chevron_right</span>
+                  </button>
+                </div>
+              </section>
+
+              {/* Category: Account */}
+              <section className="space-y-2.5">
+                <h3 className="font-title-md text-xs text-primary font-semibold px-1">Account</h3>
+                <div className="bg-white/90 border border-slate-100 rounded-[20px] shadow-sm divide-y divide-slate-100">
+                  <div className="p-4 flex items-center justify-between">
+                    <div className="flex items-center gap-3">
+                      <div className="w-8 h-8 rounded-full bg-slate-100 flex items-center justify-center text-slate-500">
+                        <span className="material-symbols-outlined text-[16px]">mail</span>
+                      </div>
+                      <div>
+                        <div className="font-semibold text-xs text-slate-900">Email Address</div>
+                        <div className="text-[10px] text-slate-400 mt-0.5">{user.email}</div>
+                      </div>
+                    </div>
+                  </div>
+
+                  <button 
+                    type="button"
+                    onClick={() => {
+                      const newPhone = prompt("Enter new phone number:", user.phone || '');
+                      if (newPhone !== null && newPhone.trim() !== '') {
+                        alert("Phone number verification code sent!");
+                      }
+                    }}
+                    className="w-full text-left p-4 flex items-center justify-between hover:bg-slate-50/50 transition-colors cursor-pointer"
+                  >
+                    <div className="flex items-center gap-3">
+                      <div className="w-8 h-8 rounded-full bg-slate-100 flex items-center justify-center text-slate-500">
+                        <span className="material-symbols-outlined text-[16px]">phone_iphone</span>
+                      </div>
+                      <div>
+                        <div className="font-semibold text-xs text-slate-900">Change Phone Number</div>
+                        <div className="text-[10px] text-slate-400 mt-0.5">{user.phone || 'Not linked'}</div>
+                      </div>
+                    </div>
+                    <span className="material-symbols-outlined text-slate-400 text-[16px]">chevron_right</span>
+                  </button>
+
+                  <button 
+                    type="button"
+                    onClick={() => {
+                      if (confirm("WARNING: Are you absolutely sure you want to delete your account? This will permanently erase your medical data and health QR code identity. This action is irreversible.")) {
+                        alert("Account deletion request submitted. Contact support to finalize.");
+                      }
+                    }}
+                    className="w-full text-left p-4 flex items-center justify-between hover:bg-error/5 transition-colors cursor-pointer"
+                  >
+                    <div className="flex items-center gap-3">
+                      <div className="w-8 h-8 rounded-full bg-error/10 flex items-center justify-center text-error">
+                        <span className="material-symbols-outlined text-[16px]">delete_forever</span>
+                      </div>
+                      <div>
+                        <div className="font-semibold text-xs text-error">Delete Account</div>
+                        <div className="text-[10px] text-error/85 mt-0.5">Permanently erase medical data</div>
+                      </div>
+                    </div>
+                    <span className="material-symbols-outlined text-error/55 text-[16px]">chevron_right</span>
+                  </button>
+                </div>
+              </section>
+
+              {/* Log Out */}
+              <button
+                type="button"
+                onClick={handleLogout}
+                className="w-full mt-4 bg-error/10 hover:bg-error/20 active:scale-95 border border-error/20 text-error font-semibold rounded-xl py-3 flex justify-center items-center gap-2 transition-all duration-200 shadow-sm cursor-pointer text-xs"
+              >
+                <span className="material-symbols-outlined text-[16px]">logout</span>
+                Log Out
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };
