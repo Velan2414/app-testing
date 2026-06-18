@@ -11,6 +11,7 @@ export const ProfileSetup: React.FC = () => {
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const [showSettingsModal, setShowSettingsModal] = useState(false);
+  const [isAgeUpdating, setIsAgeUpdating] = useState(false);
   const [name, setName] = useState(user?.patientRecord.name || '');
   const [bloodGroup, setBloodGroup] = useState(user?.patientRecord.bloodGroup || '');
   const [height, setHeight] = useState(user?.patientRecord.height || '');
@@ -36,90 +37,6 @@ export const ProfileSetup: React.FC = () => {
     }
   };
 
-  // Confetti celebration helper when DOB is entered
-  const triggerConfetti = () => {
-    const canvas = document.getElementById('confetti-canvas') as HTMLCanvasElement | null;
-    if (!canvas) return;
-    const ctx = canvas.getContext('2d');
-    if (!ctx) return;
-
-    canvas.width = window.innerWidth;
-    canvas.height = window.innerHeight;
-
-    const colors = ['#0066cc', '#2ABFBF', '#fcbb00', '#e11d48', '#10b981', '#a855f7'];
-    const particles: Array<{
-      x: number;
-      y: number;
-      vx: number;
-      vy: number;
-      radius: number;
-      color: string;
-      rotation: number;
-      rotationSpeed: number;
-      opacity: number;
-    }> = [];
-
-    const centerX = canvas.width / 2;
-    const centerY = canvas.height * 0.55;
-
-    for (let i = 0; i < 90; i++) {
-      const angle = Math.PI * 1.1 + Math.random() * Math.PI * 0.8;
-      const speed = 7 + Math.random() * 14;
-      particles.push({
-        x: centerX,
-        y: centerY,
-        vx: Math.cos(angle) * speed,
-        vy: Math.sin(angle) * speed,
-        radius: 3.5 + Math.random() * 5.5,
-        color: colors[Math.floor(Math.random() * colors.length)],
-        rotation: Math.random() * Math.PI * 2,
-        rotationSpeed: (Math.random() - 0.5) * 0.25,
-        opacity: 1
-      });
-    }
-
-    const update = () => {
-      ctx.clearRect(0, 0, canvas.width, canvas.height);
-      let stillActive = false;
-
-      particles.forEach(p => {
-        if (p.opacity > 0.01) {
-          stillActive = true;
-          p.x += p.vx;
-          p.y += p.vy;
-          p.vy += 0.35; // gravity
-          p.vx *= 0.97; // air resistance
-          p.vy *= 0.97;
-          p.rotation += p.rotationSpeed;
-          p.opacity -= 0.014;
-
-          ctx.save();
-          ctx.globalAlpha = p.opacity;
-          ctx.translate(p.x, p.y);
-          ctx.rotate(p.rotation);
-          ctx.fillStyle = p.color;
-
-          if (Math.random() > 0.45) {
-            ctx.fillRect(-p.radius, -p.radius, p.radius * 2, p.radius * 1.5);
-          } else {
-            ctx.beginPath();
-            ctx.arc(0, 0, p.radius, 0, Math.PI * 2);
-            ctx.fill();
-          }
-          ctx.restore();
-        }
-      });
-
-      if (stillActive) {
-        requestAnimationFrame(update);
-      } else {
-        ctx.clearRect(0, 0, canvas.width, canvas.height);
-      }
-    };
-
-    update();
-  };
-
   // Auto-calculate age from DOB
   const handleDobChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const dob = e.target.value;
@@ -134,10 +51,37 @@ export const ProfileSetup: React.FC = () => {
       }
       if (computedAge > 0) {
         setAge(String(computedAge));
-        // Small delay to trigger premium celebration animation
-        setTimeout(() => triggerConfetti(), 80);
+        // Trigger subtle animation on the age input wrapper
+        setIsAgeUpdating(true);
+        setTimeout(() => setIsAgeUpdating(false), 1000);
       }
     }
+  };
+
+  // Helper to dynamically calculate Body Mass Index (BMI)
+  const calculateBmi = (): { value: string; label: string; colorClass: string } | null => {
+    const h = parseFloat(height);
+    const w = parseFloat(weight);
+    if (h > 0 && w > 0) {
+      const hMeter = h / 100;
+      const bmiVal = w / (hMeter * hMeter);
+      const formatted = bmiVal.toFixed(1);
+      
+      let label = 'Normal';
+      let colorClass = 'bg-emerald-500/10 text-emerald-500 border border-emerald-500/20';
+      if (bmiVal < 18.5) {
+        label = 'Underweight';
+        colorClass = 'bg-amber-500/10 text-amber-600 border border-amber-500/20';
+      } else if (bmiVal >= 25 && bmiVal < 30) {
+        label = 'Overweight';
+        colorClass = 'bg-amber-500/10 text-amber-600 border border-amber-500/20';
+      } else if (bmiVal >= 30) {
+        label = 'Obese';
+        colorClass = 'bg-red-500/10 text-red-500 border border-red-500/20';
+      }
+      return { value: formatted, label, colorClass };
+    }
+    return null;
   };
 
   const handleSave = (e: React.FormEvent) => {
@@ -254,7 +198,11 @@ export const ProfileSetup: React.FC = () => {
 
               <div className="col-span-1 space-y-1.5">
                 <label className="font-label-caps text-[10px] text-on-surface-variant pl-1">Age</label>
-                <div className="flex items-center bg-surface-container-high rounded-[16px] p-1 border border-transparent focus-within:border-primary/50 focus-within:bg-white/90 transition-all duration-200 shadow-inner h-[52px]">
+                <div className={`flex items-center rounded-[16px] p-1 border transition-all duration-300 shadow-inner h-[52px] ${
+                  isAgeUpdating 
+                    ? 'border-emerald-500 bg-emerald-50/50 shadow-[0_0_12px_rgba(16,185,129,0.3)] scale-[1.05]' 
+                    : 'bg-surface-container-high border-transparent focus-within:border-primary/50 focus-within:bg-white/90'
+                }`}>
                   <input
                     type="number"
                     placeholder="Yrs"
@@ -333,29 +281,55 @@ export const ProfileSetup: React.FC = () => {
                 <label className="font-label-caps text-[10px] text-on-surface-variant pl-1">
                   Height <span className="lowercase font-normal opacity-70">(cm)</span>
                 </label>
-                <input
-                  type="number"
-                  placeholder="170"
-                  className="w-full rounded-[16px] py-3 px-4 font-body-lg text-sm bg-surface-container-high border border-transparent focus:bg-white/90 focus:border-primary/50 focus:ring-0 outline-none transition-all shadow-inner text-on-surface"
-                  value={height}
-                  onChange={(e) => setHeight(e.target.value)}
-                  required
-                />
+                <div className="flex items-center bg-surface-container-high rounded-[16px] p-1 border border-transparent focus-within:border-primary/50 focus-within:bg-white/90 transition-all duration-200 shadow-inner h-[52px]">
+                  <input
+                    type="number"
+                    placeholder="170"
+                    className="flex-1 bg-transparent border-none focus:outline-none focus:ring-0 text-on-surface text-sm py-2 px-3 w-full"
+                    value={height}
+                    onChange={(e) => setHeight(e.target.value)}
+                    required
+                  />
+                </div>
               </div>
               <div className="flex-1 space-y-1.5">
                 <label className="font-label-caps text-[10px] text-on-surface-variant pl-1">
                   Weight <span className="lowercase font-normal opacity-70">(kg)</span>
                 </label>
-                <input
-                  type="number"
-                  placeholder="65"
-                  className="w-full rounded-[16px] py-3 px-4 font-body-lg text-sm bg-surface-container-high border border-transparent focus:bg-white/90 focus:border-primary/50 focus:ring-0 outline-none transition-all shadow-inner text-on-surface"
-                  value={weight}
-                  onChange={(e) => setWeight(e.target.value)}
-                  required
-                />
+                <div className="flex items-center bg-surface-container-high rounded-[16px] p-1 border border-transparent focus-within:border-primary/50 focus-within:bg-white/90 transition-all duration-200 shadow-inner h-[52px]">
+                  <input
+                    type="number"
+                    placeholder="65"
+                    className="flex-1 bg-transparent border-none focus:outline-none focus:ring-0 text-on-surface text-sm py-2 px-3 w-full"
+                    value={weight}
+                    onChange={(e) => setWeight(e.target.value)}
+                    required
+                  />
+                </div>
               </div>
             </div>
+
+            {/* BMI Display */}
+            {(() => {
+              const bmi = calculateBmi();
+              if (bmi) {
+                return (
+                  <div className="flex items-center justify-between bg-slate-50 border border-slate-200/60 rounded-[16px] px-4 py-3 animate-fade-in shadow-sm">
+                    <div className="flex items-center gap-2">
+                      <span className="material-symbols-outlined text-primary text-[18px]">monitor_weight</span>
+                      <span className="font-semibold text-xs text-slate-700">Body Mass Index (BMI)</span>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <span className="font-bold text-sm text-slate-800">{bmi.value}</span>
+                      <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${bmi.colorClass}`}>
+                        {bmi.label}
+                      </span>
+                    </div>
+                  </div>
+                );
+              }
+              return null;
+            })()}
           </div>
 
           {/* Action Area */}
@@ -616,10 +590,6 @@ export const ProfileSetup: React.FC = () => {
           </div>
         </div>
       )}
-      <canvas 
-        id="confetti-canvas" 
-        className="fixed inset-0 pointer-events-none z-[999] w-full h-full" 
-      />
     </div>
   );
 };
