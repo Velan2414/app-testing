@@ -132,19 +132,33 @@ export const ProfileSetup: React.FC = () => {
               />
             </div>
 
-            {/* Date of Birth */}
-            <div className="space-y-1.5">
-              <label className="font-label-caps text-[10px] text-on-surface-variant pl-1">
-                Date of Birth <span className="lowercase font-normal opacity-70">(auto-fills age)</span>
-              </label>
-              <div className="relative">
-                <span className="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-outline text-[18px] pointer-events-none">cake</span>
+            {/* Row: Date of Birth & Age side by side */}
+            <div className="grid grid-cols-4 gap-4">
+              <div className="col-span-3 space-y-1.5">
+                <label className="font-label-caps text-[10px] text-on-surface-variant pl-1">
+                  Date of Birth <span className="lowercase font-normal opacity-70">(auto-fills age)</span>
+                </label>
+                <div className="relative">
+                  <span className="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-outline text-[18px] pointer-events-none">cake</span>
+                  <input
+                    type="date"
+                    className="w-full rounded-[16px] py-3 pl-10 pr-4 font-body-lg text-sm bg-surface-container-high border border-transparent focus:bg-white/90 focus:border-primary/50 focus:ring-0 outline-none transition-all shadow-inner text-on-surface"
+                    value={dateOfBirth}
+                    onChange={handleDobChange}
+                    max={new Date().toISOString().split('T')[0]}
+                  />
+                </div>
+              </div>
+
+              <div className="col-span-1 space-y-1.5">
+                <label className="font-label-caps text-[10px] text-on-surface-variant pl-1">Age</label>
                 <input
-                  type="date"
-                  className="w-full rounded-[16px] py-3 pl-10 pr-4 font-body-lg text-sm bg-surface-container-high border border-transparent focus:bg-white/90 focus:border-primary/50 focus:ring-0 outline-none transition-all shadow-inner text-on-surface"
-                  value={dateOfBirth}
-                  onChange={handleDobChange}
-                  max={new Date().toISOString().split('T')[0]}
+                  type="number"
+                  placeholder="Yrs"
+                  className="w-full rounded-[16px] py-3 px-3 font-body-lg text-sm bg-surface-container-high border border-transparent focus:bg-white/90 focus:border-primary/50 focus:ring-0 outline-none transition-all shadow-inner text-on-surface text-center"
+                  value={age}
+                  onChange={(e) => setAge(e.target.value)}
+                  required
                 />
               </div>
             </div>
@@ -161,25 +175,13 @@ export const ProfileSetup: React.FC = () => {
               />
             </div>
 
-            {/* Row: Age, Gender & Blood Group */}
-            <div className="grid grid-cols-3 gap-4">
-              <div className="space-y-1.5">
-                <label className="font-label-caps text-[10px] text-on-surface-variant pl-1">Age</label>
-                <input
-                  type="number"
-                  placeholder="Yrs"
-                  className="w-full rounded-[16px] py-3 px-3 font-body-lg text-sm bg-surface-container-high border border-transparent focus:bg-white/90 focus:border-primary/50 focus:ring-0 outline-none transition-all shadow-inner text-on-surface text-center"
-                  value={age}
-                  onChange={(e) => setAge(e.target.value)}
-                  required
-                />
-              </div>
-
+            {/* Row: Gender & Blood Group side by side */}
+            <div className="grid grid-cols-2 gap-4">
               <div className="space-y-1.5">
                 <label className="font-label-caps text-[10px] text-on-surface-variant pl-1">Gender</label>
                 <div className="relative">
                   <select
-                    className="w-full rounded-[16px] py-3.5 pl-3 pr-6 font-body-lg text-sm bg-surface-container-high border border-transparent focus:bg-white/90 focus:border-primary/50 focus:ring-0 outline-none transition-all shadow-inner text-on-surface appearance-none cursor-pointer"
+                    className="w-full rounded-[16px] py-3 pl-3 pr-8 font-body-lg text-sm bg-surface-container-high border border-transparent focus:bg-white/90 focus:border-primary/50 focus:ring-0 outline-none transition-all shadow-inner text-on-surface appearance-none cursor-pointer"
                     value={gender}
                     onChange={(e) => setGender(e.target.value)}
                     required
@@ -189,7 +191,7 @@ export const ProfileSetup: React.FC = () => {
                     <option value="Female">Female</option>
                     <option value="Other">Other</option>
                   </select>
-                  <span className="material-symbols-outlined absolute right-2 top-1/2 -translate-y-1/2 text-outline pointer-events-none text-[16px]">
+                  <span className="material-symbols-outlined absolute right-3 top-1/2 -translate-y-1/2 text-outline pointer-events-none text-[16px]">
                     expand_more
                   </span>
                 </div>
@@ -199,7 +201,7 @@ export const ProfileSetup: React.FC = () => {
                 <label className="font-label-caps text-[10px] text-on-surface-variant pl-1">Blood Group</label>
                 <div className="relative">
                   <select
-                    className="w-full rounded-[16px] py-3.5 pl-3 pr-6 font-body-lg text-sm bg-surface-container-high border border-transparent focus:bg-white/90 focus:border-primary/50 focus:ring-0 outline-none transition-all shadow-inner text-on-surface appearance-none cursor-pointer"
+                    className="w-full rounded-[16px] py-3 pl-3 pr-8 font-body-lg text-sm bg-surface-container-high border border-transparent focus:bg-white/90 focus:border-primary/50 focus:ring-0 outline-none transition-all shadow-inner text-on-surface appearance-none cursor-pointer"
                     value={bloodGroup}
                     onChange={(e) => setBloodGroup(e.target.value)}
                     required
@@ -214,7 +216,7 @@ export const ProfileSetup: React.FC = () => {
                     <option value="O+">O+</option>
                     <option value="O-">O-</option>
                   </select>
-                  <span className="material-symbols-outlined absolute right-2 top-1/2 -translate-y-1/2 text-outline pointer-events-none text-[16px]">
+                  <span className="material-symbols-outlined absolute right-3 top-1/2 -translate-y-1/2 text-outline pointer-events-none text-[16px]">
                     water_drop
                   </span>
                 </div>
