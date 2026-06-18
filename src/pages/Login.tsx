@@ -4,8 +4,9 @@ import { useAuth } from '../context/AuthContext';
 import { GlassCard } from '../components/GlassCard';
 import { Button } from '../components/Button';
 import { Input } from '../components/Input';
+import { InteractiveEye } from '../components/InteractiveEye';
 
-type AuthMode = 'login' | 'register';
+type AuthMode = 'login' | 'register' | 'verify-otp';
 const PASSWORD_MIN_LENGTH = 8;
 
 const validatePassword = (password: string): string | null => {
@@ -25,6 +26,8 @@ export const Login: React.FC = () => {
     onboardingComplete,
     signIn,
     signUp,
+    verifyOtp,
+    resendOtp,
   } = useAuth();
   const navigate = useNavigate();
 
@@ -32,10 +35,12 @@ export const Login: React.FC = () => {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
+  const [otpCode, setOtpCode] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState('');
   const [info, setInfo] = useState('');
   const [submitting, setSubmitting] = useState(false);
+  const [focusedField, setFocusedField] = useState<'email' | 'password' | 'confirmPassword' | 'otp' | null>(null);
 
   // Check URL parameters for verified=true redirect from backend email verification
   useEffect(() => {
@@ -73,7 +78,12 @@ export const Login: React.FC = () => {
     setSubmitting(false);
 
     if (signInError) {
-      setError(signInError);
+      if (signInError === 'EMAIL_NOT_VERIFIED') {
+        setMode('verify-otp');
+        setInfo('Your email is not verified yet. Please enter the OTP code sent to your email.');
+      } else {
+        setError(signInError);
+      }
       return;
     }
   };
@@ -100,28 +110,60 @@ export const Login: React.FC = () => {
 
     setSubmitting(true);
     const { error: signUpError } = await signUp(email, password);
+    setSubmitting(false);
 
     if (signUpError) {
-      setSubmitting(false);
       setError(signUpError);
       return;
     }
 
-    // Auto sign-in after successful registration
-    const { error: signInError } = await signIn(email, password);
-    setSubmitting(false);
-
-    if (signInError) {
-      setError(signInError);
-    }
+    setMode('verify-otp');
+    setInfo('Account created! A 6-digit verification code has been sent to your email.');
   };
 
+  const handleVerifyOtp = async (e: React.FormEvent) => {
+    e.preventDefault();
+    resetMessages();
 
+    if (otpCode.length !== 6 || !/^\d+$/.test(otpCode)) {
+      setError('Please enter a valid 6-digit OTP code');
+      return;
+    }
+
+    setSubmitting(true);
+    const { error: verifyError } = await verifyOtp(email, otpCode);
+    setSubmitting(false);
+
+    if (verifyError) {
+      setError(verifyError);
+      return;
+    }
+
+    setInfo('Email verified successfully! You can now sign in.');
+    setMode('login');
+    setOtpCode('');
+  };
+
+  const handleResendOtp = async () => {
+    resetMessages();
+    setSubmitting(true);
+    const { error: resendError } = await resendOtp(email);
+    setSubmitting(false);
+
+    if (resendError) {
+      setError(resendError);
+      return;
+    }
+
+    setInfo('A new verification code has been sent to your email.');
+  };
 
   const switchMode = (nextMode: AuthMode) => {
     setMode(nextMode);
     setPassword('');
     setConfirmPassword('');
+    setOtpCode('');
+    setFocusedField(null);
     resetMessages();
   };
 
@@ -145,20 +187,35 @@ export const Login: React.FC = () => {
 
       <main className="relative z-10 w-full max-w-md mx-auto px-container-padding-mobile flex flex-col justify-center py-8">
         <div className="flex flex-col items-center justify-center mb-8">
-          <div className="w-16 h-16 rounded-full bg-white/60 backdrop-blur-md border border-white/50 shadow-sm flex items-center justify-center mb-4">
-            <span className="material-symbols-outlined text-[32px] text-primary filled-icon">qr_code_scanner</span>
+          <div className="w-16 h-16 rounded-full bg-white/60 backdrop-blur-md border border-white/50 shadow-sm flex items-center justify-center mb-4 relative overflow-hidden group">
+            {/* Animated green/blue scanning line */}
+            <div className="absolute left-0 right-0 h-0.5 bg-gradient-to-r from-transparent via-primary to-transparent animate-qr-scan shadow-[0_0_8px_rgba(0,61,155,0.8)] opacity-85" />
+            <span className="material-symbols-outlined text-[32px] text-primary filled-icon animate-qr-pulse">qr_code_scanner</span>
           </div>
-          <h1 className="font-headline-lg-mobile text-primary tracking-tight">MediQR</h1>
+          <h1 className="font-sans text-3xl font-extrabold text-transparent bg-clip-text bg-gradient-to-r from-primary via-primary to-tertiary-container text-gradient tracking-tight">
+            MediQR
+          </h1>
           <p className="font-body-sm text-body-sm text-on-surface-variant mt-1 text-center">
             Secure access to your health identity.
           </p>
         </div>
 
         <GlassCard className="w-full">
-          {mode === 'login' ? (
+          {/* Interactive Robot Eye Avatar */}
+          <div className="flex justify-center mb-6 mt-2">
+            <InteractiveEye
+              emailLength={email.length}
+              passwordLength={password.length}
+              confirmPasswordLength={confirmPassword.length}
+              focusedField={focusedField}
+              isPasswordVisible={showPassword}
+            />
+          </div>
+
+          {mode === 'login' && (
             <form onSubmit={handleLogin} className="flex flex-col w-full">
-              <h2 className="font-title-md text-title-md text-on-surface mb-2">Welcome back</h2>
-              <p className="font-body-sm text-body-sm text-on-surface-variant mb-6">
+              <h2 className="font-title-md text-title-md text-on-surface mb-2 text-center">Welcome back</h2>
+              <p className="font-body-sm text-body-sm text-on-surface-variant mb-6 text-center">
                 Sign in with your email and password.
               </p>
 
@@ -168,6 +225,8 @@ export const Login: React.FC = () => {
                   placeholder="you@example.com"
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
+                  onFocus={() => setFocusedField('email')}
+                  onBlur={() => setFocusedField(null)}
                   icon="mail"
                   autoComplete="email"
                   required
@@ -179,6 +238,8 @@ export const Login: React.FC = () => {
                     placeholder="Password"
                     value={password}
                     onChange={(e) => setPassword(e.target.value)}
+                    onFocus={() => setFocusedField('password')}
+                    onBlur={() => setFocusedField(null)}
                     icon="lock"
                     autoComplete="current-password"
                     required
@@ -228,10 +289,12 @@ export const Login: React.FC = () => {
                 </button>
               </p>
             </form>
-          ) : (
+          )}
+
+          {mode === 'register' && (
             <form onSubmit={handleRegister} className="flex flex-col w-full">
-              <h2 className="font-title-md text-title-md text-on-surface mb-2">Create your account</h2>
-              <p className="font-body-sm text-body-sm text-on-surface-variant mb-6">
+              <h2 className="font-title-md text-title-md text-on-surface mb-2 text-center">Create your account</h2>
+              <p className="font-body-sm text-body-sm text-on-surface-variant mb-6 text-center">
                 Register with email and password to instantly access your account.
               </p>
 
@@ -241,6 +304,8 @@ export const Login: React.FC = () => {
                   placeholder="you@example.com"
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
+                  onFocus={() => setFocusedField('email')}
+                  onBlur={() => setFocusedField(null)}
                   icon="mail"
                   autoComplete="email"
                   required
@@ -251,6 +316,8 @@ export const Login: React.FC = () => {
                   placeholder="Password (min 8 chars, letters + numbers)"
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
+                  onFocus={() => setFocusedField('password')}
+                  onBlur={() => setFocusedField(null)}
                   icon="lock"
                   autoComplete="new-password"
                   required
@@ -261,6 +328,8 @@ export const Login: React.FC = () => {
                   placeholder="Confirm password"
                   value={confirmPassword}
                   onChange={(e) => setConfirmPassword(e.target.value)}
+                  onFocus={() => setFocusedField('confirmPassword')}
+                  onBlur={() => setFocusedField(null)}
                   icon="lock_reset"
                   autoComplete="new-password"
                   required
@@ -300,12 +369,80 @@ export const Login: React.FC = () => {
               </p>
             </form>
           )}
+
+          {mode === 'verify-otp' && (
+            <form onSubmit={handleVerifyOtp} className="flex flex-col w-full">
+              <h2 className="font-title-md text-title-md text-on-surface mb-2 text-center">Verify your email</h2>
+              <p className="font-body-sm text-body-sm text-on-surface-variant mb-6 text-center">
+                Enter the 6-digit code sent to <strong>{email}</strong>.
+              </p>
+
+              <div className="space-y-4">
+                <Input
+                  type="text"
+                  maxLength={6}
+                  placeholder="6-digit code"
+                  value={otpCode}
+                  onChange={(e) => setOtpCode(e.target.value.replace(/\D/g, '').slice(0, 6))}
+                  onFocus={() => setFocusedField('otp')}
+                  onBlur={() => setFocusedField(null)}
+                  icon="lock"
+                  className="text-center tracking-widest text-xl font-bold font-mono"
+                  required
+                />
+              </div>
+
+              {error && (
+                <p className="mt-4 text-sm text-red-600 bg-red-500/10 border border-red-500/20 rounded-[12px] px-3 py-2">
+                  {error}
+                </p>
+              )}
+              {info && (
+                <p className="mt-4 text-sm text-primary bg-primary/10 border border-primary/20 rounded-[12px] px-3 py-2">
+                  {info}
+                </p>
+              )}
+
+              <Button
+                variant="primary"
+                type="submit"
+                className="w-full mt-6"
+                icon="verified"
+                disabled={submitting}
+              >
+                {submitting ? 'Verifying...' : 'Verify OTP'}
+              </Button>
+
+              <div className="mt-6 flex flex-col gap-2 text-center font-body-sm text-body-sm text-on-surface-variant">
+                <div>
+                  Didn&apos;t receive the code?{' '}
+                  <button
+                    type="button"
+                    onClick={handleResendOtp}
+                    className="text-primary font-semibold hover:underline cursor-pointer"
+                    disabled={submitting}
+                  >
+                    Resend OTP
+                  </button>
+                </div>
+                <div>
+                  <button
+                    type="button"
+                    onClick={() => switchMode('login')}
+                    className="text-primary font-semibold hover:underline cursor-pointer"
+                  >
+                    Back to Sign In
+                  </button>
+                </div>
+              </div>
+            </form>
+          )}
         </GlassCard>
 
         <div className="mt-8 text-center flex items-center justify-center gap-2 opacity-60">
           <span className="material-symbols-outlined text-[16px] text-on-surface">lock</span>
           <span className="font-label-caps text-label-caps text-on-surface">
-            Secured with Custom MySQL Auth
+            Secured with Supabase PostgreSQL Auth
           </span>
         </div>
       </main>

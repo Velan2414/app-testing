@@ -5,13 +5,64 @@ import cors from 'cors';
 import pg from 'pg';
 import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken';
+import nodemailer from 'nodemailer';
+import os from 'os';
+import { fileURLToPath } from 'url';
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
 
 // Load backend/.env first (has DATABASE_URL for local dev)
-dotenv.config({ path: path.resolve(process.cwd(), 'backend', '.env') });
+dotenv.config({ path: path.resolve(__dirname, '..', 'backend', '.env') });
 // Also load root .env (won't overwrite existing vars)
-dotenv.config();
+dotenv.config({ path: path.resolve(__dirname, '..', '.env') });
 
 const { Pool } = pg;
+
+process.env.NODE_TLS_REJECT_UNAUTHORIZED = '0';
+
+// --- SMTP Email setup ---
+const transporter = nodemailer.createTransport({
+  host: process.env.EMAIL_HOST || 'smtp.gmail.com',
+  port: parseInt(process.env.EMAIL_PORT || '587'),
+  secure: process.env.EMAIL_PORT === '465', // true for 465, false for other ports
+  auth: process.env.EMAIL_USER && process.env.EMAIL_PASS ? {
+    user: process.env.EMAIL_USER,
+    pass: process.env.EMAIL_PASS,
+  } : undefined,
+});
+
+const sendOtpEmail = async (email, otp) => {
+  const mailOptions = {
+    from: `"MediQR Support" <${process.env.EMAIL_USER || 'no-reply@mediqr.com'}>`,
+    to: email,
+    subject: 'MediQR - OTP Verification Code',
+    text: `Your email verification OTP code is: ${otp}. It will expire in 10 minutes.`,
+    html: `
+      <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; border: 1px solid #e2e8f0; border-radius: 12px; background-color: #ffffff;">
+        <h2 style="color: #6366f1; text-align: center; font-size: 24px; margin-bottom: 20px;">MediQR Secure Verification</h2>
+        <p style="color: #334155; font-size: 16px; line-height: 1.5;">Thank you for registering. Please verify your email using the 6-digit One-Time Password (OTP) below:</p>
+        <div style="background-color: #f8fafc; padding: 18px; text-align: center; border-radius: 8px; margin: 24px 0; font-size: 32px; font-weight: bold; letter-spacing: 6px; color: #4f46e5; border: 1px dashed #cbd5e1;">
+          ${otp}
+        </div>
+        <p style="color: #64748b; font-size: 12px; text-align: center; margin-top: 24px;">This code will expire in 10 minutes. If you did not request this, please ignore this email.</p>
+      </div>
+    `,
+  };
+
+  console.log(`\n📨 [OTP EMAIL LOG] To: ${email} | Code: ${otp}`);
+
+  if (process.env.EMAIL_USER && process.env.EMAIL_PASS) {
+    try {
+      await transporter.sendMail(mailOptions);
+      console.log(`✅ OTP Email successfully sent to ${email}`);
+    } catch (err) {
+      console.error(`❌ Failed to send OTP Email to ${email}:`, err.message);
+    }
+  } else {
+    console.log(`⚠️ SMTP credentials not configured. Email not sent. Please set EMAIL_USER and EMAIL_PASS in your .env file to enable actual email sending.`);
+  }
+};
 
 const app = express();
 app.use(cors());
@@ -68,13 +119,18 @@ app.post('/api/auth/signup', async (req, res) => {
     }
 
     const hash = await bcrypt.hash(password, 10);
+    const otp = Math.floor(100000 + Math.random() * 900000).toString();
+
     const result = await pool.query(
-      'INSERT INTO users (email, password_hash, is_verified) VALUES ($1, $2, TRUE) RETURNING id',
-      [email, hash]
+      'INSERT INTO users (email, password_hash, is_verified, otp_code) VALUES ($1, $2, FALSE, $3) RETURNING id',
+      [email, hash, otp]
     );
 
     const userId = result.rows[0].id;
     await pool.query('INSERT INTO profiles (user_id) VALUES ($1)', [userId]);
+
+    // Send OTP to email
+    await sendOtpEmail(email, otp);
 
     res.status(200).json({ error: null });
   } catch (error) {
@@ -103,10 +159,72 @@ app.post('/api/auth/login', async (req, res) => {
       return res.status(400).json({ error: 'Invalid email or password' });
     }
 
+    // Check if user has verified their email via OTP
+    if (!user.is_verified) {
+      return res.status(400).json({ error: 'EMAIL_NOT_VERIFIED' });
+    }
+
     const token = jwt.sign({ id: user.id, email: user.email }, JWT_SECRET, { expiresIn: '7d' });
     res.status(200).json({ token, user: { id: user.id, email: user.email } });
   } catch (error) {
     console.error('Login error:', error);
+    res.status(500).json({ error: 'Internal Server Error' });
+  }
+});
+
+app.post('/api/auth/verify-otp', async (req, res) => {
+  if (!pool) return res.status(500).json({ error: 'Database connection not initialized.' });
+  const { email, otp } = req.body || {};
+
+  if (!email || !otp) {
+    return res.status(400).json({ error: 'Email and OTP code are required' });
+  }
+
+  try {
+    const result = await pool.query('SELECT * FROM users WHERE email = $1', [email]);
+    if (result.rows.length === 0) {
+      return res.status(400).json({ error: 'User not found' });
+    }
+
+    const user = result.rows[0];
+    if (user.otp_code !== otp) {
+      return res.status(400).json({ error: 'Invalid OTP verification code' });
+    }
+
+    await pool.query(
+      'UPDATE users SET is_verified = TRUE, otp_code = NULL WHERE id = $1',
+      [user.id]
+    );
+
+    res.status(200).json({ success: true, error: null });
+  } catch (error) {
+    console.error('Verify OTP error:', error);
+    res.status(500).json({ error: 'Internal Server Error' });
+  }
+});
+
+app.post('/api/auth/resend-otp', async (req, res) => {
+  if (!pool) return res.status(500).json({ error: 'Database connection not initialized.' });
+  const { email } = req.body || {};
+
+  if (!email) {
+    return res.status(400).json({ error: 'Email is required' });
+  }
+
+  try {
+    const result = await pool.query('SELECT id FROM users WHERE email = $1', [email]);
+    if (result.rows.length === 0) {
+      return res.status(400).json({ error: 'User not found' });
+    }
+
+    const otp = Math.floor(100000 + Math.random() * 900000).toString();
+    await pool.query('UPDATE users SET otp_code = $1 WHERE email = $2', [otp, email]);
+
+    await sendOtpEmail(email, otp);
+
+    res.status(200).json({ success: true, error: null });
+  } catch (error) {
+    console.error('Resend OTP error:', error);
     res.status(500).json({ error: 'Internal Server Error' });
   }
 });
@@ -159,6 +277,16 @@ app.get('/api/auth/status', async (req, res) => {
 });
 
 app.post('/api/auth/resend', async (req, res) => {
+  const { email } = req.body || {};
+  if (email) {
+    try {
+      const otp = Math.floor(100000 + Math.random() * 900000).toString();
+      await pool.query('UPDATE users SET otp_code = $1 WHERE email = $2', [otp, email]);
+      await sendOtpEmail(email, otp);
+    } catch (e) {
+      console.error('Resend fallback error:', e);
+    }
+  }
   res.status(200).json({ error: null });
 });
 
@@ -260,6 +388,56 @@ app.post('/api/records/:qrId', async (req, res) => {
     console.error('POST records error:', error);
     res.status(500).json({ error: 'Internal Server Error' });
   }
+});
+
+// --- ADMIN ENDPOINTS ---
+app.post('/api/admin/users', async (req, res) => {
+  if (!pool) return res.status(500).json({ error: 'Database connection not initialized.' });
+  const { secret } = req.body || {};
+  const expectedSecret = process.env.ADMIN_SECRET || 'admin123';
+  if (!secret || secret !== expectedSecret) {
+    return res.status(401).json({ error: 'Unauthorized: Invalid admin secret key' });
+  }
+
+  try {
+    const result = await pool.query(`
+      SELECT 
+        u.id AS user_id, 
+        u.email, 
+        p.phone, 
+        p.onboarding_complete,
+        p.patient_record,
+        p.privacy_settings,
+        p.notifications
+      FROM users u
+      LEFT JOIN profiles p ON u.id = p.user_id
+      ORDER BY u.email ASC;
+    `);
+    res.status(200).json({ success: true, users: result.rows });
+  } catch (error) {
+    console.error('Admin fetch users error:', error);
+    res.status(500).json({ error: 'Internal Server Error' });
+  }
+});
+
+// --- NETWORK IP ENDPOINT (Dynamic Local Dev Support) ---
+app.get('/api/network-ip', (req, res) => {
+  const interfaces = os.networkInterfaces();
+  let ipAddress = 'localhost';
+  for (const devName in interfaces) {
+    const iface = interfaces[devName];
+    if (iface) {
+      for (let i = 0; i < iface.length; i++) {
+        const alias = iface[i];
+        if (alias.family === 'IPv4' && !alias.internal) {
+          ipAddress = alias.address;
+          break;
+        }
+      }
+    }
+    if (ipAddress !== 'localhost') break;
+  }
+  res.json({ ip: ipAddress });
 });
 
 // --- Global error handler ---

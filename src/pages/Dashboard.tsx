@@ -45,41 +45,41 @@ export const Dashboard: React.FC = () => {
         {/* Blood Group */}
         <div 
           onClick={() => navigate('/profile/setup')}
-          className="glass-panel rounded-[24px] p-6 flex flex-col items-center justify-center gap-2 hover:bg-white/90 cursor-pointer active:scale-[0.97] transition-all duration-200 border border-white/60 shadow-sm"
+          className="glass-panel rounded-[24px] p-6 flex flex-col items-center justify-center gap-2 bg-white/40 hover:bg-white hover:border-primary/30 hover:shadow-lg hover:-translate-y-1 cursor-pointer active:scale-[0.97] transition-all duration-300 border border-white/60 shadow-sm group"
         >
-          <span className="material-symbols-outlined text-primary text-3xl filled-icon">bloodtype</span>
-          <span className="font-label-caps text-on-surface-variant text-center text-[10px]">Blood Group</span>
-          <span className="font-title-md text-on-surface text-xl">{user.patientRecord.bloodGroup || 'Not Set'}</span>
+          <span className="material-symbols-outlined text-primary text-3xl filled-icon group-hover:scale-110 transition-transform duration-300">bloodtype</span>
+          <span className="font-label-caps text-on-surface-variant text-center text-[10px] font-bold tracking-wider uppercase">Blood Group</span>
+          <span className="font-title-md text-on-surface text-xl group-hover:text-primary transition-colors duration-300">{user.patientRecord.bloodGroup || 'Not Set'}</span>
         </div>
 
         {/* Allergies */}
         <div 
           onClick={() => navigate('/profile/conditions')}
-          className="glass-panel rounded-[24px] p-6 flex flex-col items-center justify-center gap-2 hover:bg-white/90 cursor-pointer active:scale-[0.97] transition-all duration-200 border border-white/60 shadow-sm"
+          className="glass-panel rounded-[24px] p-6 flex flex-col items-center justify-center gap-2 bg-white/40 hover:bg-white hover:border-primary/30 hover:shadow-lg hover:-translate-y-1 cursor-pointer active:scale-[0.97] transition-all duration-300 border border-white/60 shadow-sm group"
         >
-          <span className="material-symbols-outlined text-primary text-3xl filled-icon">allergies</span>
-          <span className="font-label-caps text-on-surface-variant text-center text-[10px]">Allergies</span>
-          <span className="font-title-md text-on-surface text-xl truncate max-w-full">{allergySummary}</span>
+          <span className="material-symbols-outlined text-primary text-3xl filled-icon group-hover:scale-110 transition-transform duration-300">allergies</span>
+          <span className="font-label-caps text-on-surface-variant text-center text-[10px] font-bold tracking-wider uppercase">Allergies</span>
+          <span className="font-title-md text-on-surface text-xl truncate max-w-full group-hover:text-primary transition-colors duration-300">{allergySummary}</span>
         </div>
 
         {/* Medications */}
         <div 
           onClick={() => navigate('/profile/medications')}
-          className="glass-panel rounded-[24px] p-6 flex flex-col items-center justify-center gap-2 hover:bg-white/90 cursor-pointer active:scale-[0.97] transition-all duration-200 border border-white/60 shadow-sm"
+          className="glass-panel rounded-[24px] p-6 flex flex-col items-center justify-center gap-2 bg-white/40 hover:bg-white hover:border-primary/30 hover:shadow-lg hover:-translate-y-1 cursor-pointer active:scale-[0.97] transition-all duration-300 border border-white/60 shadow-sm group"
         >
-          <span className="material-symbols-outlined text-primary text-3xl filled-icon">medication</span>
-          <span className="font-label-caps text-on-surface-variant text-center text-[10px]">Medications</span>
-          <span className="font-title-md text-on-surface text-xl">{medications.length} Active</span>
+          <span className="material-symbols-outlined text-primary text-3xl filled-icon group-hover:scale-110 transition-transform duration-300">medication</span>
+          <span className="font-label-caps text-on-surface-variant text-center text-[10px] font-bold tracking-wider uppercase">Medications</span>
+          <span className="font-title-md text-on-surface text-xl group-hover:text-primary transition-colors duration-300">{medications.length} Active</span>
         </div>
 
         {/* Emergency Contacts */}
         <div 
           onClick={() => navigate('/profile/emergency-contacts')}
-          className="glass-panel rounded-[24px] p-6 flex flex-col items-center justify-center gap-2 hover:bg-white/90 cursor-pointer active:scale-[0.97] transition-all duration-200 border border-white/60 shadow-sm"
+          className="glass-panel rounded-[24px] p-6 flex flex-col items-center justify-center gap-2 bg-white/40 hover:bg-white hover:border-primary/30 hover:shadow-lg hover:-translate-y-1 cursor-pointer active:scale-[0.97] transition-all duration-300 border border-white/60 shadow-sm group"
         >
-          <span className="material-symbols-outlined text-primary text-3xl filled-icon">contacts</span>
-          <span className="font-label-caps text-on-surface-variant text-center text-[10px]">Emergency</span>
-          <span className="font-title-md text-on-surface text-xl">{contacts.length} Contacts</span>
+          <span className="material-symbols-outlined text-primary text-3xl filled-icon group-hover:scale-110 transition-transform duration-300">contacts</span>
+          <span className="font-label-caps text-on-surface-variant text-center text-[10px] font-bold tracking-wider uppercase">Emergency</span>
+          <span className="font-title-md text-on-surface text-xl group-hover:text-primary transition-colors duration-300">{contacts.length} Contacts</span>
         </div>
       </section>
 

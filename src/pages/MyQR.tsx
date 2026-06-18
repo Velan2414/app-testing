@@ -12,22 +12,39 @@ export const MyQR: React.FC = () => {
   
   const [shareSuccess, setShareSuccess] = useState(false);
   const [syncSuccess, setSyncSuccess] = useState(false);
+  const [localIp, setLocalIp] = useState<string>('localhost');
 
-  const getNetworkEmergencyUrl = () => {
+  useEffect(() => {
+    fetch('/api/network-ip')
+      .then(res => res.json())
+      .then(data => {
+        if (data && data.ip) {
+          setLocalIp(data.ip);
+        }
+      })
+      .catch(err => console.error('Failed to fetch local IP:', err));
+  }, []);
+
+  const getQrCodeUrl = () => {
     let origin = window.location.origin;
     if (origin.includes('localhost') || origin.includes('127.0.0.1')) {
-      origin = origin.replace('localhost', '10.62.227.100').replace('127.0.0.1', '10.62.227.100');
+      origin = origin.replace('localhost', localIp).replace('127.0.0.1', localIp);
     }
     return `${origin}/emergency/${user?.patientRecord?.qrId || ''}`;
   };
 
-  const emergencyUrl = user ? getNetworkEmergencyUrl() : '';
+  const getDirectReportCardUrl = () => {
+    return `${window.location.origin}/emergency/${user?.patientRecord?.qrId || ''}`;
+  };
+
+  const qrCodeUrl = user ? getQrCodeUrl() : '';
+  const directReportCardUrl = user ? getDirectReportCardUrl() : '';
 
   useEffect(() => {
     if (canvasRef.current && user?.patientRecord?.qrId) {
       QRCode.toCanvas(
         canvasRef.current,
-        emergencyUrl,
+        qrCodeUrl,
         {
           width: 240,
           margin: 1,
@@ -41,7 +58,7 @@ export const MyQR: React.FC = () => {
         }
       );
     }
-  }, [user?.patientRecord?.qrId, emergencyUrl]);
+  }, [user?.patientRecord?.qrId, qrCodeUrl]);
 
   if (!user) return null;
 
@@ -67,10 +84,10 @@ export const MyQR: React.FC = () => {
       navigator.share({
         title: `${record.name}'s MediQR Health ID`,
         text: `Securely access emergency health data for ${record.name}.`,
-        url: emergencyUrl
+        url: qrCodeUrl
       }).catch((err) => console.log('Error sharing', err));
     } else {
-      navigator.clipboard.writeText(emergencyUrl);
+      navigator.clipboard.writeText(qrCodeUrl);
       setShareSuccess(true);
       setTimeout(() => setShareSuccess(false), 2000);
     }
@@ -179,6 +196,16 @@ export const MyQR: React.FC = () => {
             </div>
             
             <Button
+              variant="primary"
+              onClick={() => window.open(directReportCardUrl, '_blank')}
+              icon="launch"
+              iconPosition="left"
+              className="w-full py-3 justify-center bg-gradient-to-r from-primary to-primary-container"
+            >
+              Get Report Card
+            </Button>
+
+            <Button
               variant="secondary"
               onClick={handleRegenerate}
               icon="sync"
@@ -197,6 +224,24 @@ export const MyQR: React.FC = () => {
               <div className="flex items-center justify-between border-b border-outline-variant/30 pb-4">
                 <h3 className="font-title-md text-on-surface font-semibold">Live Scanner Preview</h3>
                 <span className="material-symbols-outlined text-primary">visibility</span>
+              </div>
+
+              {/* Get Report Card Direct Link Banner */}
+              <div 
+                onClick={() => window.open(directReportCardUrl, '_blank')}
+                className="bg-gradient-to-r from-teal-500/10 to-primary/10 border border-teal-500/20 rounded-xl p-3.5 flex items-center justify-between hover:shadow-md active:scale-[0.99] transition-all cursor-pointer group shadow-sm"
+                title="Open Emergency Report Card in a new tab"
+              >
+                <div className="flex items-center gap-2.5">
+                  <div className="w-8 h-8 bg-teal-500/10 text-teal-600 rounded-lg flex items-center justify-center border border-teal-500/20 shrink-0">
+                    <span className="material-symbols-outlined text-[18px] animate-pulse">launch</span>
+                  </div>
+                  <div className="text-left min-w-0">
+                    <p className="text-[11px] font-bold text-primary uppercase tracking-wider">Get Report Card</p>
+                    <p className="text-[9px] text-on-surface-variant truncate">Click to view/print your emergency report card directly.</p>
+                  </div>
+                </div>
+                <span className="material-symbols-outlined text-teal-600 text-[14px] group-hover:translate-x-1 transition-transform shrink-0">arrow_forward_ios</span>
               </div>
 
               {/* Data List */}

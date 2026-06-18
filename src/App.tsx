@@ -18,6 +18,7 @@ import { Records } from './pages/Records';
 import { Notifications } from './pages/Notifications';
 import { Settings } from './pages/Settings';
 import { Reports } from './pages/Reports';
+import { AdminDashboard } from './pages/AdminDashboard';
 
 function App() {
   return (
@@ -40,6 +41,7 @@ function App() {
           {/* Protected Navigation Chrome Layout Routes */}
           <Route element={<MainLayout />}>
             <Route path="/dashboard" element={<Dashboard />} />
+            <Route path="/admin" element={<AdminDashboard />} />
             <Route path="/profile/setup" element={<ProfileSetup />} />
             <Route path="/profile/conditions" element={<Conditions />} />
             <Route path="/profile/medications" element={<Medications />} />

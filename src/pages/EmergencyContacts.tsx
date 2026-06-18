@@ -66,37 +66,41 @@ export const EmergencyContacts: React.FC = () => {
             return (
               <GlassCard
                 key={idx}
-                className="flex items-center gap-4 relative overflow-hidden p-4 group"
+                className="relative overflow-hidden p-4 group flex flex-col sm:flex-row sm:items-center justify-between gap-4"
               >
                 {/* Red outline accent for primary emergency contact */}
                 {isPrimary && (
                   <div className="absolute left-0 top-0 bottom-0 w-1.5 bg-error rounded-l-[24px]" />
                 )}
 
-                {/* Avatar Icon */}
-                <div className={`w-12 h-12 rounded-full flex items-center justify-center font-bold text-sm shrink-0 ${
-                  isPrimary 
-                    ? 'bg-error-container text-on-error-container' 
-                    : 'bg-secondary-container text-on-secondary-container'
-                }`}>
-                  {initials}
-                </div>
-
-                <div className="flex-1 min-w-0">
-                  <div className="flex items-center gap-2 mb-1">
-                    <h3 className="font-title-md text-sm text-on-surface truncate font-semibold">{contact.name}</h3>
-                    <span className={`px-2 py-0.5 rounded-full font-bold text-[9px] uppercase tracking-wide border ${
-                      isPrimary 
-                        ? 'bg-error/10 text-error border-error/20' 
-                        : 'bg-outline-variant/30 text-on-surface-variant border-transparent'
-                    }`}>
-                      {contact.relationship}
-                    </span>
+                {/* Left Section: Avatar + Details */}
+                <div className="flex items-center gap-4 flex-1 min-w-0">
+                  {/* Avatar Icon */}
+                  <div className={`w-12 h-12 rounded-full flex items-center justify-center font-bold text-sm shrink-0 ${
+                    isPrimary 
+                      ? 'bg-error-container text-on-error-container' 
+                      : 'bg-secondary-container text-on-secondary-container'
+                  }`}>
+                    {initials}
                   </div>
-                  <p className="text-xs text-on-surface-variant truncate">{contact.phone}</p>
+
+                  <div className="flex-1 min-w-0">
+                    <div className="flex flex-wrap items-center gap-2 mb-1">
+                      <h3 className="font-title-md text-sm text-on-surface truncate font-semibold max-w-[150px] sm:max-w-none">{contact.name}</h3>
+                      <span className={`px-2 py-0.5 rounded-full font-bold text-[9px] uppercase tracking-wide border shrink-0 ${
+                        isPrimary 
+                          ? 'bg-error/10 text-error border-error/20' 
+                          : 'bg-outline-variant/30 text-on-surface-variant border-transparent'
+                      }`}>
+                        {contact.relationship}
+                      </span>
+                    </div>
+                    <p className="text-xs text-on-surface-variant truncate">{contact.phone}</p>
+                  </div>
                 </div>
 
-                <div className="flex items-center gap-2 shrink-0">
+                {/* Right Section: Actions */}
+                <div className="flex items-center justify-end gap-2 shrink-0 border-t border-outline-variant/10 sm:border-t-0 pt-3 sm:pt-0">
                   {/* Delete button */}
                   <button
                     onClick={() => removeContact(idx)}
@@ -109,7 +113,7 @@ export const EmergencyContacts: React.FC = () => {
                   {/* Phone Call link */}
                   <a
                     href={`tel:${contact.phone}`}
-                    className={`w-12 h-12 rounded-full flex items-center justify-center transition-all shadow-md ${
+                    className={`w-12 h-12 rounded-full flex items-center justify-center transition-all shadow-md shrink-0 ${
                       isPrimary 
                         ? 'bg-error text-white hover:bg-error/90 shadow-red-200' 
                         : 'bg-surface-container-high text-on-surface hover:bg-surface-variant'

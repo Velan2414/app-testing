@@ -13,7 +13,7 @@ export const GlassCard: React.FC<GlassCardProps> = ({ children, goldBorder = fal
     >
       {/* Inner Ring Highlight */}
       <div className={`absolute inset-0 rounded-[24px] border pointer-events-none m-[2px] ${goldBorder ? 'border-amber-400/20' : 'border-white/20'}`} />
-      <div className="relative z-10">{children}</div>
+      {children}
     </div>
   );
 };

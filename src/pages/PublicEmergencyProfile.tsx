@@ -210,18 +210,54 @@ const MOCK_DHONI_DATA = {
 
 export const PublicEmergencyProfile: React.FC = () => {
   const { qrId } = useParams<{ qrId: string }>();
+  const todayDate = new Date().toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' });
   const [recordData, setRecordData] = useState<{ patientRecord: ExtendedPatientRecord; privacySettings: PrivacySettings } | null>(null);
   const [loading, setLoading] = useState(true);
 
   // Security gate states
-  const [gatePassed, setGatePassed] = useState(false);
+  const [gatePassed, setGatePassed] = useState(true);
   const [isScanning, setIsScanning] = useState(false);
   const [scanLogs, setScanLogs] = useState<string[]>([]);
   const [useCamera, setUseCamera] = useState(false);
   const [cameraError, setCameraError] = useState<string | null>(null);
 
-  // Document modal states
+  // Document modal & profile locking states
   const [selectedDoc, setSelectedDoc] = useState<DhoniDocument | null>(null);
+  const [showQrModal, setShowQrModal] = useState(false);
+  const [isProfileLocked, setIsProfileLocked] = useState(() => {
+    const activeQrId = qrId || 'mq-784512';
+    return localStorage.getItem('mediqr_locked_' + activeQrId) === 'true';
+  });
+  const [verificationName, setVerificationName] = useState('');
+  const [verificationError, setVerificationError] = useState('');
+  const [isUnlocking, setIsUnlocking] = useState(false);
+
+  const handleVerifyUnlock = () => {
+    if (!recordData) return;
+    const patientName = recordData.patientRecord.name;
+    const isNameMatch = verificationName.trim().toLowerCase() === patientName.trim().toLowerCase();
+
+    if (isNameMatch) {
+      setIsUnlocking(true);
+      setVerificationError('');
+      const activeQrId = qrId || 'mq-784512';
+      setTimeout(() => {
+        setIsProfileLocked(false);
+        localStorage.setItem('mediqr_locked_' + activeQrId, 'false');
+        setIsUnlocking(false);
+        setVerificationName('');
+      }, 1200);
+    } else {
+      const lastThree = patientName.substring(Math.max(0, patientName.length - 3));
+      setVerificationError(`Incorrect patient name. (Hint: Name ends with "...${lastThree}")`);
+    }
+  };
+
+  const handleLockProfile = () => {
+    setIsProfileLocked(true);
+    const activeQrId = qrId || 'mq-784512';
+    localStorage.setItem('mediqr_locked_' + activeQrId, 'true');
+  };
 
   // Refs for camera scanning
   const videoRef = useRef<HTMLVideoElement>(null);
@@ -229,8 +265,10 @@ export const PublicEmergencyProfile: React.FC = () => {
   const streamRef = useRef<MediaStream | null>(null);
   const animationFrameRef = useRef<number | null>(null);
 
-  // Header QR canvas ref
+  // QR canvas refs
   const headerQrCanvasRef = useRef<HTMLCanvasElement>(null);
+  const dossierQrCanvasRef = useRef<HTMLCanvasElement>(null);
+  const modalQrCanvasRef = useRef<HTMLCanvasElement>(null);
 
   // Fetch record on mount
   useEffect(() => {
@@ -271,22 +309,55 @@ export const PublicEmergencyProfile: React.FC = () => {
     fetchRecord();
   }, [qrId]);
 
-  // Generate QR Code inside card header when record is ready and gate is passed
+  // Generate QR Code inside card header & dossier when record is ready and gate is passed
   useEffect(() => {
-    if (gatePassed && recordData && headerQrCanvasRef.current) {
+    if (gatePassed && recordData) {
       const pageUrl = window.location.href;
-      QRCode.toCanvas(headerQrCanvasRef.current, pageUrl, {
-        width: 80,
+      
+      if (headerQrCanvasRef.current) {
+        QRCode.toCanvas(headerQrCanvasRef.current, pageUrl, {
+          width: 80,
+          margin: 1,
+          color: {
+            dark: '#1B3A6B',
+            light: '#FFFFFF'
+          }
+        }, (err) => {
+          if (err) console.error('Error generating header QR Code', err);
+        });
+      }
+      
+      if (dossierQrCanvasRef.current) {
+        QRCode.toCanvas(dossierQrCanvasRef.current, pageUrl, {
+          width: 120,
+          margin: 1,
+          color: {
+            dark: '#1B3A6B',
+            light: '#FFFFFF'
+          }
+        }, (err) => {
+          if (err) console.error('Error generating dossier QR Code', err);
+        });
+      }
+    }
+  }, [gatePassed, recordData]);
+
+  // Generate QR Code inside zoom modal when opened
+  useEffect(() => {
+    if (showQrModal && modalQrCanvasRef.current) {
+      const pageUrl = window.location.href;
+      QRCode.toCanvas(modalQrCanvasRef.current, pageUrl, {
+        width: 300,
         margin: 1,
         color: {
           dark: '#1B3A6B',
           light: '#FFFFFF'
         }
       }, (err) => {
-        if (err) console.error('Error generating header QR Code', err);
+        if (err) console.error('Error generating modal QR Code', err);
       });
     }
-  }, [gatePassed, recordData]);
+  }, [showQrModal]);
 
   // Clean up camera stream on unmount
   useEffect(() => {
@@ -454,7 +525,6 @@ export const PublicEmergencyProfile: React.FC = () => {
   const hasLabResults = !!(record.labResults && record.labResults.length > 0);
   const hasLastVisit = !!(record.lastVisit);
   const hasDocuments = !!(record.documents && record.documents.length > 0);
-  const hasAuthorization = !!(record.authorization);
 
   return (
     <div className="bg-[#F4F6FB] min-h-screen font-sans text-[#1A2340] pb-12 antialiased relative">
@@ -588,6 +658,43 @@ export const PublicEmergencyProfile: React.FC = () => {
         }
         .emergency-pulse-btn {
           animation: alert-pulse 2s infinite;
+        }
+
+        /* Ambulance Light Border & Shadow pulse (Red & Blue hover strobe) */
+        @keyframes ambulance-strobe-border {
+          0%, 100% {
+            border-color: #ef4444 !important;
+            box-shadow: 0 0 16px rgba(239, 68, 68, 0.75) !important;
+          }
+          50% {
+            border-color: #3b82f6 !important;
+            box-shadow: 0 0 16px rgba(59, 130, 246, 0.75) !important;
+          }
+        }
+        .ambulance-alert-box {
+          border-color: #fca5a5;
+          border-width: 2.5px !important;
+          transition: all 0.3s ease;
+        }
+        .ambulance-alert-box:hover {
+          animation: ambulance-strobe-border 0.6s infinite steps(2);
+        }
+
+        /* Ambulance Header Flashing (Red & Blue hover strobe) */
+        @keyframes ambulance-strobe-bg {
+          0%, 100% {
+            background-color: #ef4444 !important;
+          }
+          50% {
+            background-color: #3b82f6 !important;
+          }
+        }
+        .ambulance-alert-header {
+          background-color: #dc2626;
+          transition: all 0.3s ease;
+        }
+        .ambulance-alert-box:hover .ambulance-alert-header {
+          animation: ambulance-strobe-bg 0.6s infinite steps(2);
         }
 
         /* Document modal scrollbar */
@@ -784,7 +891,7 @@ export const PublicEmergencyProfile: React.FC = () => {
             </div>
             <div className="flex items-center gap-2">
               <button 
-                onClick={() => setGatePassed(false)}
+                onClick={handleLockProfile}
                 className="text-xs text-[#6B7A99] font-bold hover:underline hover:text-[#1B3A6B] cursor-pointer flex items-center gap-1"
               >
                 <span className="material-symbols-outlined text-[14px]">lock</span>
@@ -794,7 +901,65 @@ export const PublicEmergencyProfile: React.FC = () => {
           </div>
 
           {/* REPORT CARD OUTER BOUNDARY */}
-          <div className="report-card-outer p-4 sm:p-6 md:p-8 space-y-5 sm:space-y-6">
+          <div className="relative">
+            {/* Lock Overlay (Frosted glass blur + security shield + verification input) */}
+            {isProfileLocked && (
+              <div className="absolute inset-0 bg-[#F4F6FB]/85 backdrop-blur-md rounded-xl z-45 flex flex-col items-center justify-center p-6 text-center animate-fade-in no-print">
+                <div className="bg-white border border-[#E0E6EF] rounded-2xl shadow-xl p-6 sm:p-8 max-w-md w-full space-y-6 animate-zoom-in">
+                  
+                  {/* Icon */}
+                  <div className="w-16 h-16 bg-red-50 text-red-500 rounded-full flex items-center justify-center mx-auto shadow-inner">
+                    <span className="material-symbols-outlined text-3xl font-bold animate-pulse">lock_person</span>
+                  </div>
+
+                  {/* Text */}
+                  <div className="space-y-2">
+                    <h3 className="headings-font text-lg font-bold text-slate-800 uppercase tracking-wide">Emergency Access Locked</h3>
+                    <p className="text-xs text-slate-500 leading-relaxed">
+                      This clinical report card has been secured by the patient. To verify identity and decrypt records, please enter the patient's full name.
+                    </p>
+                    <p className="text-[11px] text-teal-700 bg-teal-50 border border-teal-200 rounded px-3 py-1.5 font-bold inline-block">
+                      💡 Identity Hint: Ends with <span className="font-mono text-xs font-black underline">"...{record.name.substring(Math.max(0, record.name.length - 3))}"</span>
+                    </p>
+                  </div>
+
+                  {/* Input field */}
+                  <div className="space-y-3">
+                    <input 
+                      type="text"
+                      placeholder="Enter patient name..."
+                      className="w-full text-center text-sm font-semibold rounded-xl py-3 px-4 bg-slate-50 border border-slate-200 focus:bg-white focus:border-red-500 focus:ring-0 outline-none transition-all text-slate-800"
+                      value={verificationName}
+                      onChange={(e) => {
+                        setVerificationName(e.target.value);
+                        setVerificationError('');
+                      }}
+                    />
+                    
+                    {verificationError && (
+                      <p className="text-[11px] text-red-600 font-semibold">{verificationError}</p>
+                    )}
+
+                    {isUnlocking ? (
+                      <div className="py-2.5 flex items-center justify-center gap-2">
+                        <div className="w-4 h-4 border-2 border-red-500 border-t-transparent rounded-full animate-spin"></div>
+                        <span className="text-[11px] text-slate-500 font-bold">Decrypting records...</span>
+                      </div>
+                    ) : (
+                      <Button 
+                        variant="primary"
+                        onClick={handleVerifyUnlock}
+                        className="w-full py-3 justify-center bg-red-600 hover:bg-red-700 hover:shadow-lg font-bold text-xs"
+                      >
+                        Authorize &amp; Decrypt
+                      </Button>
+                    )}
+                  </div>
+                </div>
+              </div>
+            )}
+
+            <div className={`report-card-outer p-4 sm:p-6 md:p-8 space-y-5 sm:space-y-6 transition-all duration-500 ${isProfileLocked ? 'filter blur-sm select-none pointer-events-none' : ''}`}>
             
             {/* 2.1 HEADER BAR */}
             <header className="flex flex-col sm:flex-row justify-between items-center gap-4 sm:gap-6 border-b border-[#E0E6EF] pb-4 sm:pb-6">
@@ -820,12 +985,16 @@ export const PublicEmergencyProfile: React.FC = () => {
               </div>
 
               {/* Right Side: QR Code Verification */}
-              <div className="flex items-center gap-3 border border-[#E0E6EF] p-2 rounded-xl bg-[#F8FAFD] w-full sm:w-auto justify-between sm:justify-start">
-                <div className="text-right">
+              <div className="flex items-center gap-3 border border-[#E0E6EF] p-2 rounded-xl bg-[#F8FAFD] w-full sm:w-auto justify-between sm:justify-start shrink-0">
+                <div className="text-right shrink-0">
                   <span className="text-[8px] font-bold text-[#6B7A99] block uppercase tracking-wider">MediQR ID</span>
                   <span className="font-mono text-xs font-bold text-[#1B3A6B]">{patientId.toUpperCase()}</span>
                 </div>
-                <div className="relative w-12 h-12 sm:w-14 sm:h-14 bg-white border border-dashed border-[#6B7A99]/40 rounded-lg flex items-center justify-center overflow-hidden">
+                <div 
+                  onClick={() => setShowQrModal(true)}
+                  className="relative w-12 h-12 sm:w-14 sm:h-14 bg-white border border-dashed border-[#6B7A99]/40 rounded-lg flex items-center justify-center overflow-hidden shrink-0 cursor-pointer hover:border-[#2ABFBF] transition-colors"
+                  title="Click to Zoom QR Code"
+                >
                   <canvas ref={headerQrCanvasRef} className="w-full h-full"></canvas>
                 </div>
               </div>
@@ -833,95 +1002,161 @@ export const PublicEmergencyProfile: React.FC = () => {
             </header>
 
             {/* 2.2 PATIENT PROFILE CARD (full-width) */}
-            <section className="report-card-section border border-[#E0E6EF] rounded-lg p-4 sm:p-5 bg-white grid grid-cols-1 md:grid-cols-12 gap-5 sm:gap-6 relative">
+            <section className="report-card-section border border-[#E0E6EF] rounded-xl p-5 bg-white grid grid-cols-1 md:grid-cols-12 gap-6 relative shadow-sm">
               
-              {/* Profile Card Left Column */}
-              <div className="md:col-span-4 flex items-start gap-4 md:border-r border-[#E0E6EF]/70 md:pr-4">
-                <div className="w-16 h-16 sm:w-20 sm:h-20 rounded-full bg-[#F4F6FB] flex items-center justify-center text-[#6B7A99] border border-[#E0E6EF] shrink-0">
-                  <span className="material-symbols-outlined text-3xl sm:text-4xl font-light">account_circle</span>
-                </div>
-                <div className="space-y-1">
-                  <h2 className="headings-font text-xl sm:text-2xl font-bold text-[#1B3A6B] leading-none">{record.name}</h2>
-                  <div className="space-y-1 pt-1 sm:pt-2">
-                    <p className="text-xs text-[#1A2340] font-medium flex items-center gap-1.5">
-                      <span className="text-[#6B7A99]">👥</span>
-                      <span className="data-label text-[9px] sm:text-[10px]">Age/Gender:</span> {record.age} Y / {record.gender}
-                    </p>
-                    <p className="text-xs text-[#1A2340] font-medium flex items-center gap-1.5">
-                      <span className="text-[#E53935]">🩸</span>
-                      <span className="data-label text-[9px] sm:text-[10px]">Blood Group:</span> <strong className="text-[#E53935] font-bold">{record.bloodGroup}</strong>
-                    </p>
-                    <p className="text-xs text-[#1A2340] font-medium flex items-center gap-1.5">
-                      <span className="text-[#2ABFBF]">📏</span>
-                      <span className="data-value text-xs">{record.height} cm</span>
-                      <span className="text-[#E0E6EF]">|</span>
-                      <span className="data-value text-xs">{record.weight} kg</span>
-                    </p>
+              {/* Profile Card Left Dossier (8 columns) */}
+              <div className="md:col-span-8 flex flex-col gap-4 md:border-r border-[#E0E6EF]/70 md:pr-6">
+                
+                {/* Header Profile Details */}
+                <div className="flex items-center gap-4">
+                  <div className="w-16 h-16 sm:w-20 sm:h-20 rounded-full bg-[#1B3A6B]/5 flex items-center justify-center text-[#1B3A6B]/70 border border-[#E0E6EF] shrink-0 shadow-inner overflow-hidden">
+                    {record.photo ? (
+                      <img src={record.photo} alt={record.name} className="w-full h-full object-cover" />
+                    ) : (
+                      <span className="material-symbols-outlined text-3xl sm:text-4xl font-light select-none">account_circle</span>
+                    )}
+                  </div>
+                  <div className="space-y-1">
+                    <h2 className="headings-font text-xl sm:text-2xl font-bold text-[#1B3A6B] leading-none">{record.name}</h2>
+                    <div className="flex flex-wrap items-center gap-x-3 gap-y-1 pt-1.5">
+                      <span className="bg-[#1B3A6B]/10 text-[#1B3A6B] px-2.5 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider">
+                        Patient Profile
+                      </span>
+                      <span className="text-[10px] text-slate-400 font-bold uppercase tracking-widest font-mono">
+                        ID: {patientId.toUpperCase()}
+                      </span>
+                    </div>
                   </div>
                 </div>
-              </div>
 
-              {/* Profile Card Middle Column */}
-              <div className="md:col-span-4 flex flex-col justify-between space-y-3 md:border-r border-[#E0E6EF]/70 md:pr-4">
-                <div className="grid grid-cols-2 gap-y-2 gap-x-2">
-                  <div>
-                    <span className="data-label block text-[8px] sm:text-[9px]">MediQR ID</span>
-                    <span className="data-value font-mono text-xs">{patientId.toUpperCase()}</span>
-                  </div>
+                <div className="h-px bg-slate-100" />
+
+                {/* Structured Dossier Grid (Organised, larger fonts) */}
+                <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-x-4 gap-y-3">
+                  {/* DOB */}
                   {record.dob && (
-                    <div>
-                      <span className="data-label block text-[8px] sm:text-[9px]">Date of Birth</span>
-                      <span className="data-value text-xs">{record.dob}</span>
+                    <div className="bg-slate-50 border border-slate-100 rounded-lg p-3 hover:bg-slate-100/50 transition-colors">
+                      <div className="flex items-center gap-1.5 text-[10px] font-bold text-slate-400 uppercase tracking-wider">
+                        <span>📅</span>
+                        <span>Date of Birth</span>
+                      </div>
+                      <span className="font-bold text-slate-800 mt-1 block text-sm">{record.dob}</span>
                     </div>
                   )}
-                  {record.phone && (
-                    <div className="col-span-2">
-                      <span className="data-label block text-[8px] sm:text-[9px]">Phone</span>
-                      <span className="data-value text-xs">{record.phone}</span>
+
+                  {/* Age */}
+                  <div className="bg-slate-50 border border-slate-100 rounded-lg p-3 hover:bg-slate-100/50 transition-colors">
+                    <div className="flex items-center gap-1.5 text-[10px] font-bold text-slate-400 uppercase tracking-wider">
+                      <span>🎂</span>
+                      <span>Age</span>
                     </div>
-                  )}
-                  {record.email && (
-                    <div className="col-span-2">
-                      <span className="data-label block text-[8px] sm:text-[9px]">Email</span>
-                      <span className="data-value text-xs break-all">{record.email}</span>
-                    </div>
-                  )}
-                </div>
-                {record.address && (
-                  <div>
-                    <span className="data-label block text-[8px] sm:text-[9px]">Address</span>
-                    <span className="data-value text-xs leading-snug">{record.address}</span>
+                    <span className="font-bold text-slate-800 mt-1 block text-sm">{record.age} Years</span>
                   </div>
-                )}
+
+                  {/* Gender */}
+                  <div className="bg-slate-50 border border-slate-100 rounded-lg p-3 hover:bg-slate-100/50 transition-colors">
+                    <div className="flex items-center gap-1.5 text-[10px] font-bold text-slate-400 uppercase tracking-wider">
+                      <span>👤</span>
+                      <span>Gender</span>
+                    </div>
+                    <span className="font-bold text-slate-800 mt-1 block text-sm">{record.gender}</span>
+                  </div>
+
+                  {/* Blood Group */}
+                  <div className="bg-red-50 border border-red-100 rounded-lg p-3 hover:bg-red-50/70 transition-colors">
+                    <div className="flex items-center gap-1.5 text-[10px] font-bold text-red-500/80 uppercase tracking-wider">
+                      <span>🩸</span>
+                      <span>Blood Group</span>
+                    </div>
+                    <span className="font-black text-red-600 mt-1 block text-base leading-none">{record.bloodGroup}</span>
+                  </div>
+
+                  {/* Height & Weight */}
+                  <div className="bg-slate-50 border border-slate-100 rounded-lg p-3 hover:bg-slate-100/50 transition-colors">
+                    <div className="flex items-center gap-1.5 text-[10px] font-bold text-slate-400 uppercase tracking-wider">
+                      <span>📏</span>
+                      <span>Height &amp; Weight</span>
+                    </div>
+                    <span className="font-bold text-slate-800 mt-1 block text-sm">{record.height} cm / {record.weight} kg</span>
+                  </div>
+
+                  {/* Phone */}
+                  {record.phone && (
+                    <div className="bg-slate-50 border border-slate-100 rounded-lg p-3 hover:bg-slate-100/50 transition-colors">
+                      <div className="flex items-center gap-1.5 text-[10px] font-bold text-slate-400 uppercase tracking-wider">
+                        <span>📞</span>
+                        <span>Phone Number</span>
+                      </div>
+                      <span className="font-bold text-slate-800 mt-1 block text-sm">{record.phone}</span>
+                    </div>
+                  )}
+
+                  {/* Email */}
+                  {record.email && (
+                    <div className="bg-slate-50 border border-slate-100 rounded-lg p-3 hover:bg-slate-100/50 transition-colors">
+                      <div className="flex items-center gap-1.5 text-[10px] font-bold text-slate-400 uppercase tracking-wider">
+                        <span>✉️</span>
+                        <span>Email Address</span>
+                      </div>
+                      <span className="font-bold text-slate-800 mt-1 block text-sm truncate" title={record.email}>{record.email}</span>
+                    </div>
+                  )}
+
+                  {/* Address */}
+                  {record.address && (
+                    <div className="col-span-1 sm:col-span-2 md:col-span-1 bg-slate-50 border border-slate-100 rounded-lg p-3 hover:bg-slate-100/50 transition-colors">
+                      <div className="flex items-center gap-1.5 text-[10px] font-bold text-slate-400 uppercase tracking-wider">
+                        <span>🏠</span>
+                        <span>Residential Address</span>
+                      </div>
+                      <span className="font-bold text-slate-800 mt-1 block text-xs leading-relaxed">{record.address}</span>
+                    </div>
+                  )}
+
+                  {/* QR Code Image Card in Report Card (Clickable to zoom) */}
+                  <div 
+                    onClick={() => setShowQrModal(true)}
+                    className="col-span-1 sm:col-span-2 md:col-span-1 bg-white border-2 border-dashed border-[#2ABFBF]/50 rounded-lg p-3 hover:bg-slate-50 transition-colors cursor-pointer flex flex-col items-center justify-center gap-1.5 shadow-sm hover:shadow group text-center"
+                  >
+                    <div className="flex items-center gap-1 text-[10px] font-bold text-[#2ABFBF] uppercase tracking-wider">
+                      <span className="material-symbols-outlined text-xs">qr_code_2</span>
+                      <span>Click to Zoom</span>
+                    </div>
+                    <div className="relative w-14 h-14 bg-white border border-[#E0E6EF] rounded flex items-center justify-center overflow-hidden">
+                      <canvas ref={dossierQrCanvasRef} className="w-full h-full"></canvas>
+                    </div>
+                    <span className="text-[9px] font-mono text-slate-500 font-bold uppercase tracking-wider leading-none">EMERGENCY QR</span>
+                  </div>
+                </div>
+
               </div>
 
-              {/* Profile Card Right Column - RED EMERGENCY BOX */}
-              <div className="md:col-span-4 bg-red-alert bg-[#E53935] text-white rounded-lg overflow-hidden flex flex-col justify-between border border-[#E53935] shadow-sm">
-                <div className="bg-[#b92b28] px-3.5 py-2 flex items-center gap-1.5 border-b border-white/10 font-bold">
-                  <span className="material-symbols-outlined text-[14px] text-white filled-icon">warning</span>
-                  <span className="text-[9px] uppercase tracking-wider font-extrabold">In Case of Emergency (ICE)</span>
+              {/* Profile Card Right Column - EMERGENCY CONTACTS (4 columns, Blinking ambulance styling on hover) */}
+              <div className="md:col-span-4 bg-gradient-to-br from-rose-50 to-red-50/10 border-2 rounded-xl overflow-hidden flex flex-col shadow-sm ambulance-alert-box">
+                <div className="text-white px-3 py-2.5 flex items-center gap-2 font-bold shadow-[0_2px_4px_rgba(0,0,0,0.1)] shrink-0 ambulance-alert-header">
+                  <span className="material-symbols-outlined text-[16px] text-white filled-icon animate-pulse select-none">warning</span>
+                  <span className="text-[10px] uppercase tracking-wider font-extrabold text-white">Emergency Contacts (ICE)</span>
                 </div>
-                <div className="p-3.5 space-y-3 flex-grow">
+                <div className="p-3.5 space-y-2.5 flex-grow flex flex-col justify-center">
                   {record.contacts && record.contacts.map((contact, idx) => (
-                    <React.Fragment key={idx}>
-                      {idx > 0 && <div className="h-px bg-white/15"></div>}
-                      <div className="flex justify-between items-start gap-2">
-                        <div>
-                          <h4 className="text-xs font-bold leading-tight">{contact.name}</h4>
-                          <p className="text-[9px] text-white/80 mt-0.5">{contact.relationship}</p>
-                          <p className="text-[10px] font-mono mt-0.5">{contact.phone}</p>
+                    <div key={idx} className="bg-white border border-red-200 rounded-lg p-3 flex justify-between items-center gap-2 shadow-sm">
+                      <div className="min-w-0">
+                        <h4 className="text-sm font-bold text-slate-900 truncate">{contact.name}</h4>
+                        <div className="flex flex-wrap items-center gap-2 mt-1 text-[11px] text-slate-700">
+                          <span className="font-bold text-red-600 bg-red-50 px-1.5 py-0.5 rounded uppercase tracking-wider text-[9px]">{contact.relationship}</span>
+                          <span className="font-mono font-black text-slate-900">{contact.phone}</span>
                         </div>
-                        <a 
-                          href={`tel:${contact.phone}`}
-                          className="bg-white/20 hover:bg-white/30 rounded-full p-1.5 text-white transition-colors shrink-0 flex items-center justify-center leading-none"
-                        >
-                          <span className="material-symbols-outlined text-[12px] filled-icon">call</span>
-                        </a>
                       </div>
-                    </React.Fragment>
+                      <a 
+                        href={`tel:${contact.phone}`}
+                        className="bg-red-600 hover:bg-red-700 text-white rounded-full p-2 transition-all duration-200 shrink-0 flex items-center justify-center shadow hover:shadow-md active:scale-95"
+                      >
+                        <span className="material-symbols-outlined text-[12px] filled-icon font-bold">call</span>
+                      </a>
+                    </div>
                   ))}
                   {(!record.contacts || record.contacts.length === 0) && (
-                    <p className="text-xs text-white/70 italic text-center py-2">No emergency contacts listed</p>
+                    <p className="text-xs text-red-600 font-semibold italic text-center py-2">No contacts listed</p>
                   )}
                 </div>
               </div>
@@ -1186,76 +1421,96 @@ export const PublicEmergencyProfile: React.FC = () => {
             )}
 
             {/* 2.7 ATTACHED DOCUMENTS & AUTHORIZATION ROW */}
-            {(hasDocuments || hasAuthorization) && (
-              <section className="report-card-section">
-                <div className="bg-[#F8FAFD] px-4 py-2.5 border-b border-[#E0E6EF]">
-                  <span className="report-card-header-badge">
-                    <span className="material-symbols-outlined text-[12px] filled-icon">
-                      {hasDocuments ? 'folder_shared' : 'verified_user'}
-                    </span>
-                    {hasDocuments ? 'Attached Documents' : 'Clinical Certification'}
+            <section className="report-card-section">
+              <div className="bg-[#F8FAFD] px-4 py-2.5 border-b border-[#E0E6EF]">
+                <span className="report-card-header-badge">
+                  <span className="material-symbols-outlined text-[12px] filled-icon">
+                    verified_user
                   </span>
-                </div>
-                <div className="p-4 sm:p-5 grid grid-cols-1 lg:grid-cols-12 gap-5 sm:gap-6">
+                  Clinical Verification &amp; Certification
+                </span>
+              </div>
+              <div className="p-4 sm:p-5 grid grid-cols-1 lg:grid-cols-12 gap-5 sm:gap-6">
+                
+                {/* Document tiles */}
+                {hasDocuments ? (
+                  <div className="lg:col-span-8 grid grid-cols-2 sm:grid-cols-4 gap-3">
+                    {record.documents.map((doc) => (
+                      <div 
+                        key={doc.id}
+                        onClick={() => setSelectedDoc(doc)}
+                        className="border border-[#E0E6EF] rounded-lg p-2.5 text-center bg-[#F8FAFD] hover:bg-white hover:border-[#2ABFBF] hover:shadow-md active:scale-95 transition-all cursor-pointer flex flex-col justify-between items-center h-[110px] sm:h-[120px]"
+                      >
+                        <div className="w-full">
+                          <h4 className="text-[10px] sm:text-[11px] font-bold tracking-tight text-[#1B3A6B] truncate w-full">{doc.name}</h4>
+                          <span className="text-[8px] sm:text-[9px] text-[#6B7A99] block mt-0.5">{doc.date}</span>
+                        </div>
+                        <div className="flex flex-col items-center gap-1">
+                          <span className="material-symbols-outlined text-[#E53935] text-2xl sm:text-3xl font-light">picture_as_pdf</span>
+                          <span className="text-[8px] bg-red-50 text-[#E53935] px-1.5 py-0.5 rounded font-bold uppercase tracking-wider">{doc.type || 'PDF'}</span>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <div className="lg:col-span-8 flex flex-col justify-center items-center p-6 border border-dashed border-[#E0E6EF] rounded-lg bg-slate-50/50">
+                    <span className="material-symbols-outlined text-[#6B7A99] text-3xl font-light">folder_off</span>
+                    <span className="text-xs text-[#6B7A99] mt-2 font-medium">No additional documents uploaded</span>
+                  </div>
+                )}
+
+                {/* Doctor Authorization Box (Always visible) */}
+                <div className={`${hasDocuments ? 'lg:col-span-4' : 'lg:col-span-12 max-w-md mx-auto w-full'} border border-[#E0E6EF] rounded-lg p-4 bg-[#F8FAFD] flex flex-col justify-between relative overflow-hidden min-h-[170px]`}>
                   
-                  {/* Document tiles */}
-                  {hasDocuments && (
-                    <div className={`${hasAuthorization ? 'lg:col-span-8' : 'lg:col-span-12'} grid grid-cols-2 sm:grid-cols-4 gap-3`}>
-                      {record.documents.map((doc) => (
-                        <div 
-                          key={doc.id}
-                          onClick={() => setSelectedDoc(doc)}
-                          className="border border-[#E0E6EF] rounded-lg p-2.5 text-center bg-[#F8FAFD] hover:bg-white hover:border-[#2ABFBF] hover:shadow-md active:scale-95 transition-all cursor-pointer flex flex-col justify-between items-center h-[110px] sm:h-[120px]"
-                        >
-                          <div className="w-full">
-                            <h4 className="text-[10px] sm:text-[11px] font-bold tracking-tight text-[#1B3A6B] truncate w-full">{doc.name}</h4>
-                            <span className="text-[8px] sm:text-[9px] text-[#6B7A99] block mt-0.5">{doc.date}</span>
-                          </div>
-                          <div className="flex flex-col items-center gap-1">
-                            <span className="material-symbols-outlined text-[#E53935] text-2xl sm:text-3xl font-light">picture_as_pdf</span>
-                            <span className="text-[8px] bg-red-50 text-[#E53935] px-1.5 py-0.5 rounded font-bold uppercase tracking-wider">{doc.type || 'PDF'}</span>
-                          </div>
-                        </div>
-                      ))}
+                  <div className="relative z-10">
+                    <span className="data-label text-[8px] sm:text-[9px] block">Authorization Certification</span>
+                    <div className="flex items-center gap-1.5 mt-1.5">
+                      <div className="w-1.5 h-1.5 bg-teal-500 rounded-full animate-pulse"></div>
+                      <span className="text-[9px] font-bold text-teal-600 tracking-wide uppercase">Digitally Certified</span>
                     </div>
-                  )}
-
-                  {/* Doctor Authorization Box */}
-                  {hasAuthorization && (
-                    <div className={`${hasDocuments ? 'lg:col-span-4' : 'lg:col-span-12 max-w-md mx-auto w-full'} border border-[#E0E6EF] rounded-lg p-4 bg-[#F8FAFD] flex flex-col justify-between`}>
-                      <div>
-                        <span className="data-label text-[8px] sm:text-[9px] block">Authorization Certification</span>
-                        <div className="flex items-center gap-1.5 mt-1.5">
-                          <div className="w-1.5 h-1.5 bg-teal-500 rounded-full animate-pulse"></div>
-                          <span className="text-[9px] font-bold text-teal-600 tracking-wide uppercase">Digitally Certified</span>
-                        </div>
-                      </div>
-                      
-                      {/* Signature Cursive Graphic */}
-                      <div className="my-2 py-0.5 flex items-center justify-center border-b border-dashed border-[#E0E6EF] h-[48px]">
-                        <svg width="150" height="36" className="opacity-95">
-                          <text x="10" y="24" className="cursive-font text-[20px] fill-[#1B3A6B] font-bold select-none">
-                            {record.authorization?.doctor}
-                          </text>
-                        </svg>
-                      </div>
-                      
-                      <div className="space-y-0.5 text-right">
-                        <p className="text-xs font-bold text-[#1B3A6B]">{record.authorization?.doctor}</p>
-                        <p className="text-[8px] sm:text-[9px] text-[#6B7A99] font-semibold">{record.authorization?.credentials}</p>
-                        <p className="text-[8px] sm:text-[9px] text-[#6B7A99] font-mono leading-none">{record.authorization?.regNo}</p>
-                      </div>
+                  </div>
+                  
+                  {/* Signature and Stamp Overlap Area */}
+                  <div className="my-3 py-1 flex items-center justify-center border-b border-dashed border-[#E0E6EF] h-[64px] relative z-20">
+                    
+                    {/* Round Company Blue Ink Seal Stamp - placed underneath the signature but mixed using blend-mode */}
+                    <div 
+                      style={{ fontFamily: "'Poppins', 'Outfit', sans-serif" }}
+                      className="absolute right-4 -top-8 w-26 h-26 rounded-full border-4 border-double border-blue-600/85 flex flex-col items-center justify-center select-none transform rotate-[-15deg] pointer-events-none p-1.5 z-10 bg-white/15 mix-blend-multiply shadow-[0_0_4px_rgba(29,78,216,0.15),_inset_0_0_4px_rgba(29,78,216,0.25)]"
+                    >
+                      <div className="absolute inset-1 rounded-full border border-dashed border-blue-600/65" />
+                      <span className="text-[8px] text-blue-600 font-black uppercase tracking-wider text-center mt-1 leading-none">MEDIQR CLINIC</span>
+                      <span className="border-y-2 border-dashed border-blue-600/85 text-blue-700 font-extrabold text-[10px] px-2 py-0.5 my-1.5 tracking-widest uppercase leading-none rounded">VERIFIED</span>
+                      <span className="text-[7px] font-mono font-bold text-blue-600/90 uppercase tracking-wider leading-none">
+                        {todayDate}
+                      </span>
                     </div>
-                  )}
 
+                    {/* Green Ink Velan Cursive Signature - rendered OVER the stamp */}
+                    <svg width="150" height="48" className="opacity-95 transform rotate-[-4deg] relative z-25 pointer-events-none">
+                      <text x="25" y="32" className="cursive-font text-[28px] fill-[#059669] font-bold select-none drop-shadow-[0_1px_1px_rgba(0,0,0,0.05)]">
+                        Velan
+                      </text>
+                    </svg>
+
+                  </div>
+                  
+                  <div className="space-y-0.5 text-right relative z-10">
+                    <p className="text-xs font-bold text-[#1B3A6B]">Dr. Velan</p>
+                    <p className="text-[8px] sm:text-[9px] text-[#6B7A99] font-semibold">{record.authorization?.credentials || 'MBBS, MD (General Medicine)'}</p>
+                    <p className="text-[8px] sm:text-[9px] text-[#6B7A99] font-mono leading-none">{record.authorization?.regNo || 'Reg. No: TN-98431'}</p>
+                  </div>
                 </div>
-              </section>
-            )}
+
+              </div>
+            </section>
 
           </div>
 
-          {/* ========================================================= */}
-          {/* 2.8 FOOTER BAR                                           */}
+        </div>
+
+        {/* ========================================================= */}
+        {/* 2.8 FOOTER BAR                                           */}
           {/* ========================================================= */}
           <footer className="bg-[#1B3A6B]/5 border border-[#E0E6EF] rounded-xl p-4 sm:p-5 flex flex-col sm:flex-row justify-between items-center gap-4">
             
@@ -1291,6 +1546,51 @@ export const PublicEmergencyProfile: React.FC = () => {
           </footer>
 
         </main>
+      )}
+
+      {/* ========================================================= */}
+      {/* 4. EMERGENCY QR CODE ZOOM MODAL OVERLAY                   */}
+      {/* ========================================================= */}
+      {showQrModal && (
+        <div className="fixed inset-0 bg-slate-950/80 backdrop-blur-sm z-[999] flex items-center justify-center p-4 animate-fade-in no-print">
+          <div className="bg-white rounded-2xl shadow-2xl border border-[#E0E6EF] w-full max-w-sm overflow-hidden flex flex-col p-6 items-center text-center space-y-6">
+            
+            <div className="flex justify-between items-center w-full border-b border-slate-100 pb-3">
+              <div className="flex items-center gap-2 text-[#1B3A6B]">
+                <span className="material-symbols-outlined text-[#2ABFBF] filled-icon">qr_code_2</span>
+                <span className="font-bold text-sm uppercase tracking-wide">Emergency QR Code</span>
+              </div>
+              <button 
+                onClick={() => setShowQrModal(false)}
+                className="text-slate-400 hover:text-slate-600 rounded-full hover:bg-slate-100 p-1 flex items-center justify-center transition-colors cursor-pointer"
+              >
+                <span className="material-symbols-outlined text-lg font-bold">close</span>
+              </button>
+            </div>
+
+            <p className="text-xs text-slate-500 font-semibold leading-relaxed">
+              Scan this code using any smartphone or medical scanner to instantly open {record.name}'s secure emergency medical card.
+            </p>
+
+            {/* QR Canvas */}
+            <div className="bg-white p-4 rounded-2xl border-2 border-dashed border-[#2ABFBF]/30 shadow-inner">
+              <canvas ref={modalQrCanvasRef} className="rounded" style={{ width: '220px', height: '220px' }} />
+            </div>
+
+            <div className="flex items-center gap-2 text-teal-700 bg-teal-50 border border-teal-200 px-3 py-1.5 rounded-full font-bold text-[10px] uppercase tracking-wider">
+              <span className="material-symbols-outlined text-xs filled-icon animate-pulse">verified_user</span>
+              <span>Secure Health Link</span>
+            </div>
+
+            <Button 
+              variant="secondary" 
+              onClick={() => setShowQrModal(false)}
+              className="w-full py-2.5 text-xs text-[#1B3A6B] font-bold"
+            >
+              Close
+            </Button>
+          </div>
+        </div>
       )}
 
       {/* ========================================================= */}

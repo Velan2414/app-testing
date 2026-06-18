@@ -1,4 +1,4 @@
-import React, { useRef, useState } from 'react';
+import React, { useRef, useState, useEffect } from 'react';
 import jsQR from 'jsqr';
 import { jsPDF } from 'jspdf';
 import { useAuth } from '../context/AuthContext';
@@ -11,6 +11,95 @@ export const ScanQR: React.FC = () => {
   const { user } = useAuth();
   const fileInputRef = useRef<HTMLInputElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
+
+  // Real camera QR Scanner states and refs
+  const videoRef = useRef<HTMLVideoElement>(null);
+  const streamRef = useRef<MediaStream | null>(null);
+  const animationFrameRef = useRef<number | null>(null);
+  const [isCameraActive, setIsCameraActive] = useState(false);
+  const isCameraActiveRef = useRef(false);
+  const [cameraError, setCameraError] = useState<string | null>(null);
+
+  // Sync state to ref to avoid stale closures in requestAnimationFrame loops
+  useEffect(() => {
+    isCameraActiveRef.current = isCameraActive;
+  }, [isCameraActive]);
+
+  // Clean up camera stream and anim frame on unmount
+  useEffect(() => {
+    return () => {
+      if (streamRef.current) {
+        streamRef.current.getTracks().forEach(track => track.stop());
+      }
+      if (animationFrameRef.current) {
+        cancelAnimationFrame(animationFrameRef.current);
+      }
+    };
+  }, []);
+
+  const scanFrame = () => {
+    if (videoRef.current && canvasRef.current && isCameraActiveRef.current) {
+      const video = videoRef.current;
+      const canvas = canvasRef.current;
+      const ctx = canvas.getContext('2d');
+
+      if (ctx && video.readyState === video.HAVE_ENOUGH_DATA) {
+        canvas.width = video.videoWidth;
+        canvas.height = video.videoHeight;
+        ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+
+        const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+        const code = jsQR(imageData.data, imageData.width, imageData.height, {
+          inversionAttempts: 'dontInvert',
+        });
+
+        if (code) {
+          // Decoded QR successfully! Stop stream and process URL
+          if (streamRef.current) {
+            streamRef.current.getTracks().forEach(track => track.stop());
+            streamRef.current = null;
+          }
+          setIsCameraActive(false);
+          handleDecodedUrl(code.data);
+          return;
+        }
+      }
+      animationFrameRef.current = requestAnimationFrame(scanFrame);
+    }
+  };
+
+  const startCameraScan = async () => {
+    setErrorMsg('');
+    setCameraError(null);
+    setIsCameraActive(true);
+    
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment' } });
+      streamRef.current = stream;
+      if (videoRef.current) {
+        videoRef.current.srcObject = stream;
+        videoRef.current.setAttribute('playsinline', 'true');
+        videoRef.current.play();
+        animationFrameRef.current = requestAnimationFrame(scanFrame);
+      }
+    } catch (err) {
+      console.error('Failed to access camera', err);
+      setCameraError('Camera access denied or device has no camera. Please upload an image.');
+      setIsCameraActive(false);
+    }
+  };
+
+  const stopCameraScan = () => {
+    if (streamRef.current) {
+      streamRef.current.getTracks().forEach(track => track.stop());
+      streamRef.current = null;
+    }
+    if (animationFrameRef.current) {
+      cancelAnimationFrame(animationFrameRef.current);
+      animationFrameRef.current = null;
+    }
+    setIsCameraActive(false);
+  };
 
   const [qrInput, setQrInput] = useState('');
   const [errorMsg, setErrorMsg] = useState('');
@@ -801,35 +890,60 @@ export const ScanQR: React.FC = () => {
         {/* Left: Viewfinder */}
         <div className="md:col-span-7 flex flex-col items-center justify-center gap-4">
           <div className="relative w-full aspect-square max-w-[320px] bg-slate-950 rounded-[2rem] overflow-hidden shadow-2xl flex flex-col justify-center items-center">
-            {/* Blurred camera background mock */}
-            <div 
-              className="absolute inset-0 opacity-30 bg-cover bg-center select-none pointer-events-none"
-              style={{
-                backgroundImage: `url('https://images.unsplash.com/photo-1519494026892-80bbd2d6fd0d?auto=format&fit=crop&q=80&w=800')`
-              }}
-            />
-            
-            {/* Radial overlay vignette */}
-            <div className="absolute inset-0 bg-[radial-gradient(circle_at_center,_transparent_100px,_rgba(0,0,0,0.85)_140px)] pointer-events-none z-10" />
+            {isCameraActive ? (
+              <div className="absolute inset-0 w-full h-full z-10">
+                <video 
+                  ref={videoRef} 
+                  muted 
+                  playsInline 
+                  className="w-full h-full object-cover"
+                />
+                
+                {/* Laser scan line overlay */}
+                <div className="absolute left-0 w-full h-[3px] bg-gradient-to-r from-transparent via-amber-400 to-transparent shadow-[0_0_12px_#cba72f] animate-scan-line z-20" />
+                
+                {/* Cancel Camera Scanning Button Overlay */}
+                <button
+                  onClick={stopCameraScan}
+                  className="absolute bottom-4 left-1/2 -translate-x-1/2 bg-black/60 hover:bg-black/85 text-white border border-white/20 rounded-full px-4 py-1.5 text-[10px] font-bold uppercase tracking-wider flex items-center gap-1 cursor-pointer z-30 transition-all active:scale-95"
+                >
+                  <span className="material-symbols-outlined text-[12px]">cancel</span>
+                  Stop Scan
+                </button>
+              </div>
+            ) : (
+              <>
+                {/* Blurred camera background mock */}
+                <div 
+                  className="absolute inset-0 opacity-30 bg-cover bg-center select-none pointer-events-none"
+                  style={{
+                    backgroundImage: `url('https://images.unsplash.com/photo-1519494026892-80bbd2d6fd0d?auto=format&fit=crop&q=80&w=800')`
+                  }}
+                />
+                
+                {/* Radial overlay vignette */}
+                <div className="absolute inset-0 bg-[radial-gradient(circle_at_center,_transparent_100px,_rgba(0,0,0,0.85)_140px)] pointer-events-none z-10" />
 
-            {/* Scanning viewfinder overlay box */}
-            <button
-              onClick={handleSimulateScan}
-              className="relative w-56 h-56 bg-transparent border border-white/20 rounded-[24px] overflow-hidden shadow-[0_0_30px_rgba(203,167,47,0.1)] flex items-center justify-center cursor-pointer hover:border-amber-400/40 group active:scale-98 transition-all duration-300 z-20"
-            >
-              {/* Corner borders */}
-              <div className="absolute top-0 left-0 w-8 h-8 border-t-4 border-l-4 border-amber-500 rounded-tl-[16px]" />
-              <div className="absolute top-0 right-0 w-8 h-8 border-t-4 border-r-4 border-amber-500 rounded-tr-[16px]" />
-              <div className="absolute bottom-0 left-0 w-8 h-8 border-b-4 border-l-4 border-amber-500 rounded-bl-[16px]" />
-              <div className="absolute bottom-0 right-0 w-8 h-8 border-b-4 border-r-4 border-amber-500 rounded-br-[16px]" />
+                {/* Scanning viewfinder overlay box */}
+                <button
+                  onClick={startCameraScan}
+                  className="relative w-56 h-56 bg-transparent border border-white/20 rounded-[24px] overflow-hidden shadow-[0_0_30px_rgba(203,167,47,0.1)] flex items-center justify-center cursor-pointer hover:border-amber-400/40 group active:scale-98 transition-all duration-300 z-20"
+                >
+                  {/* Corner borders */}
+                  <div className="absolute top-0 left-0 w-8 h-8 border-t-4 border-l-4 border-amber-500 rounded-tl-[16px]" />
+                  <div className="absolute top-0 right-0 w-8 h-8 border-t-4 border-r-4 border-amber-500 rounded-tr-[16px]" />
+                  <div className="absolute bottom-0 left-0 w-8 h-8 border-b-4 border-l-4 border-amber-500 rounded-bl-[16px]" />
+                  <div className="absolute bottom-0 right-0 w-8 h-8 border-b-4 border-r-4 border-amber-500 rounded-br-[16px]" />
 
-              {/* Animated Scan Line */}
-              <div className="absolute left-0 w-full h-[3px] bg-gradient-to-r from-transparent via-amber-400 to-transparent shadow-[0_0_12px_#cba72f] animate-scan-line" />
+                  {/* Animated Scan Line */}
+                  <div className="absolute left-0 w-full h-[3px] bg-gradient-to-r from-transparent via-amber-400 to-transparent shadow-[0_0_12px_#cba72f] animate-scan-line" />
 
-              <span className="material-symbols-outlined text-white/30 text-5xl group-hover:text-amber-400 transition-colors">
-                qr_code_scanner
-              </span>
-            </button>
+                  <span className="material-symbols-outlined text-white/30 text-5xl group-hover:text-amber-400 transition-colors">
+                    photo_camera
+                  </span>
+                </button>
+              </>
+            )}
           </div>
 
           <div className="flex gap-4 w-full max-w-[320px]">
@@ -842,15 +956,27 @@ export const ScanQR: React.FC = () => {
             >
               Upload QR Image
             </Button>
-            <Button
-              variant="primary"
-              onClick={handleSimulateScan}
-              icon="bolt"
-              iconPosition="left"
-              className="flex-1 py-3 justify-center text-center text-xs"
-            >
-              Quick Scan
-            </Button>
+            {isCameraActive ? (
+              <Button
+                variant="secondary"
+                onClick={stopCameraScan}
+                icon="cancel"
+                iconPosition="left"
+                className="flex-1 py-3 justify-center text-center text-xs text-red-600 hover:text-red-700"
+              >
+                Stop Camera
+              </Button>
+            ) : (
+              <Button
+                variant="primary"
+                onClick={startCameraScan}
+                icon="photo_camera"
+                iconPosition="left"
+                className="flex-1 py-3 justify-center text-center text-xs"
+              >
+                Scan Camera
+              </Button>
+            )}
           </div>
         </div>
 
@@ -879,8 +1005,22 @@ export const ScanQR: React.FC = () => {
               >
                 Validate &amp; Open
               </Button>
+
+              <button
+                type="button"
+                onClick={handleSimulateScan}
+                className="w-full text-center text-[11px] text-amber-700 hover:underline cursor-pointer font-bold mt-2"
+              >
+                ⚡ Quick Simulate: Scan My Own Code
+              </button>
             </form>
           </GlassCard>
+
+          {cameraError && (
+            <div className="p-3 bg-red-500/10 border border-red-500/20 rounded-[16px] text-red-600 font-semibold text-xs leading-relaxed text-center animate-fade-in">
+              {cameraError}
+            </div>
+          )}
 
           {/* Feedback states */}
           {errorMsg && (

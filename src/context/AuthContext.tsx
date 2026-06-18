@@ -31,6 +31,8 @@ interface AuthContextType {
   signUp: (email: string, password: string) => Promise<{ error: string | null }>;
   resendVerificationEmail: () => Promise<{ error: string | null }>;
   checkEmailVerificationStatus: () => Promise<boolean>;
+  verifyOtp: (email: string, otp: string) => Promise<{ error: string | null }>;
+  resendOtp: (email: string) => Promise<{ error: string | null }>;
   signIn: (email: string, password: string) => Promise<{ error: string | null }>;
   completeOnboarding: () => Promise<void>;
   logout: () => Promise<void>;
@@ -250,6 +252,65 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       return false;
     } catch {
       return false;
+    }
+  };
+
+  const verifyOtp = async (email: string, otp: string): Promise<{ error: string | null }> => {
+    try {
+      const response = await fetch('/api/auth/verify-otp', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email: email.trim().toLowerCase(), otp }),
+      });
+      
+      let data;
+      try {
+        data = await response.json();
+      } catch (e) {
+        data = { error: 'Server returned an invalid response. Please try again later.' };
+      }
+      
+      if (!response.ok) {
+        return { error: data.error || 'Verification failed' };
+      }
+      
+      setPendingVerificationEmail(null);
+      localStorage.removeItem('pending_verification_email');
+      
+      return { error: null };
+    } catch (err: unknown) {
+      if (err instanceof Error) {
+        return { error: err.message || 'Verification connection error' };
+      }
+      return { error: 'Verification connection error' };
+    }
+  };
+
+  const resendOtp = async (email: string): Promise<{ error: string | null }> => {
+    try {
+      const response = await fetch('/api/auth/resend-otp', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email: email.trim().toLowerCase() }),
+      });
+      
+      let data;
+      try {
+        data = await response.json();
+      } catch (e) {
+        data = { error: 'Server returned an invalid response. Please try again later.' };
+      }
+      
+      if (!response.ok) {
+        return { error: data.error || 'Failed to resend verification code' };
+      }
+      
+      return { error: null };
+    } catch (err: unknown) {
+      if (err instanceof Error) {
+        return { error: err.message || 'Resend connection error' };
+      }
+      return { error: 'Resend connection error' };
     }
   };
 
@@ -513,6 +574,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         signUp,
         resendVerificationEmail,
         checkEmailVerificationStatus,
+        verifyOtp,
+        resendOtp,
         signIn,
         completeOnboarding,
         logout,
