@@ -36,6 +36,90 @@ export const ProfileSetup: React.FC = () => {
     }
   };
 
+  // Confetti celebration helper when DOB is entered
+  const triggerConfetti = () => {
+    const canvas = document.getElementById('confetti-canvas') as HTMLCanvasElement | null;
+    if (!canvas) return;
+    const ctx = canvas.getContext('2d');
+    if (!ctx) return;
+
+    canvas.width = window.innerWidth;
+    canvas.height = window.innerHeight;
+
+    const colors = ['#0066cc', '#2ABFBF', '#fcbb00', '#e11d48', '#10b981', '#a855f7'];
+    const particles: Array<{
+      x: number;
+      y: number;
+      vx: number;
+      vy: number;
+      radius: number;
+      color: string;
+      rotation: number;
+      rotationSpeed: number;
+      opacity: number;
+    }> = [];
+
+    const centerX = canvas.width / 2;
+    const centerY = canvas.height * 0.55;
+
+    for (let i = 0; i < 90; i++) {
+      const angle = Math.PI * 1.1 + Math.random() * Math.PI * 0.8;
+      const speed = 7 + Math.random() * 14;
+      particles.push({
+        x: centerX,
+        y: centerY,
+        vx: Math.cos(angle) * speed,
+        vy: Math.sin(angle) * speed,
+        radius: 3.5 + Math.random() * 5.5,
+        color: colors[Math.floor(Math.random() * colors.length)],
+        rotation: Math.random() * Math.PI * 2,
+        rotationSpeed: (Math.random() - 0.5) * 0.25,
+        opacity: 1
+      });
+    }
+
+    const update = () => {
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+      let stillActive = false;
+
+      particles.forEach(p => {
+        if (p.opacity > 0.01) {
+          stillActive = true;
+          p.x += p.vx;
+          p.y += p.vy;
+          p.vy += 0.35; // gravity
+          p.vx *= 0.97; // air resistance
+          p.vy *= 0.97;
+          p.rotation += p.rotationSpeed;
+          p.opacity -= 0.014;
+
+          ctx.save();
+          ctx.globalAlpha = p.opacity;
+          ctx.translate(p.x, p.y);
+          ctx.rotate(p.rotation);
+          ctx.fillStyle = p.color;
+
+          if (Math.random() > 0.45) {
+            ctx.fillRect(-p.radius, -p.radius, p.radius * 2, p.radius * 1.5);
+          } else {
+            ctx.beginPath();
+            ctx.arc(0, 0, p.radius, 0, Math.PI * 2);
+            ctx.fill();
+          }
+          ctx.restore();
+        }
+      });
+
+      if (stillActive) {
+        requestAnimationFrame(update);
+      } else {
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+      }
+    };
+
+    update();
+  };
+
   // Auto-calculate age from DOB
   const handleDobChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const dob = e.target.value;
@@ -48,7 +132,11 @@ export const ProfileSetup: React.FC = () => {
       if (m < 0 || (m === 0 && today.getDate() < birth.getDate())) {
         computedAge--;
       }
-      if (computedAge > 0) setAge(String(computedAge));
+      if (computedAge > 0) {
+        setAge(String(computedAge));
+        // Small delay to trigger premium celebration animation
+        setTimeout(() => triggerConfetti(), 80);
+      }
     }
   };
 
@@ -90,9 +178,9 @@ export const ProfileSetup: React.FC = () => {
         <button
           type="button"
           onClick={() => setShowSettingsModal(true)}
-          className="mb-4 bg-slate-50 border border-slate-200 text-slate-700 hover:bg-slate-100 font-semibold px-4 py-2 rounded-full text-xs flex items-center gap-1.5 transition-all shadow-sm cursor-pointer"
+          className="mb-4 bg-slate-50 border border-slate-200 text-slate-700 hover:bg-slate-100 font-semibold px-5 py-2.5 rounded-full text-sm flex items-center gap-2 transition-all shadow-sm cursor-pointer"
         >
-          <span className="material-symbols-outlined text-[16px] text-primary">settings</span>
+          <span className="material-symbols-outlined text-[18px] text-primary">settings</span>
           Settings & Privacy Preferences
         </button>
 
@@ -151,14 +239,12 @@ export const ProfileSetup: React.FC = () => {
             {/* Row: Date of Birth & Age side by side */}
             <div className="grid grid-cols-4 gap-4">
               <div className="col-span-3 space-y-1.5">
-                <label className="font-label-caps text-[10px] text-on-surface-variant pl-1">
-                  Date of Birth <span className="lowercase font-normal opacity-70">(auto-fills age)</span>
-                </label>
-                <div className="relative">
-                  <span className="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-outline text-[18px] pointer-events-none">cake</span>
+                <label className="font-label-caps text-[10px] text-on-surface-variant pl-1">Date of Birth</label>
+                <div className="flex items-center bg-surface-container-high rounded-[16px] p-1 border border-transparent focus-within:border-primary/50 focus-within:bg-white/90 transition-all duration-200 shadow-inner h-[52px]">
+                  <span className="material-symbols-outlined text-outline-variant pl-3 pr-2 text-[20px] pointer-events-none">cake</span>
                   <input
                     type="date"
-                    className="w-full rounded-[16px] py-3 pl-10 pr-4 font-body-lg text-sm bg-surface-container-high border border-transparent focus:bg-white/90 focus:border-primary/50 focus:ring-0 outline-none transition-all shadow-inner text-on-surface"
+                    className="flex-1 bg-transparent border-none focus:outline-none focus:ring-0 text-on-surface text-sm py-2 pr-3 w-full cursor-pointer"
                     value={dateOfBirth}
                     onChange={handleDobChange}
                     max={new Date().toISOString().split('T')[0]}
@@ -168,14 +254,16 @@ export const ProfileSetup: React.FC = () => {
 
               <div className="col-span-1 space-y-1.5">
                 <label className="font-label-caps text-[10px] text-on-surface-variant pl-1">Age</label>
-                <input
-                  type="number"
-                  placeholder="Yrs"
-                  className="w-full rounded-[16px] py-3 px-3 font-body-lg text-sm bg-surface-container-high border border-transparent focus:bg-white/90 focus:border-primary/50 focus:ring-0 outline-none transition-all shadow-inner text-on-surface text-center"
-                  value={age}
-                  onChange={(e) => setAge(e.target.value)}
-                  required
-                />
+                <div className="flex items-center bg-surface-container-high rounded-[16px] p-1 border border-transparent focus-within:border-primary/50 focus-within:bg-white/90 transition-all duration-200 shadow-inner h-[52px]">
+                  <input
+                    type="number"
+                    placeholder="Yrs"
+                    className="flex-1 bg-transparent border-none focus:outline-none focus:ring-0 text-on-surface text-sm py-2 px-1 w-full text-center"
+                    value={age}
+                    onChange={(e) => setAge(e.target.value)}
+                    required
+                  />
+                </div>
               </div>
             </div>
 
@@ -295,7 +383,7 @@ export const ProfileSetup: React.FC = () => {
         >
           <div 
             onClick={(e) => e.stopPropagation()}
-            className="bg-white/80 backdrop-blur-xl rounded-[28px] border border-slate-100/50 p-6 max-w-sm w-full max-h-[85vh] overflow-y-auto shadow-[0_24px_60px_rgba(0,102,204,0.15)] flex flex-col relative cursor-default text-left"
+            className="bg-white/85 backdrop-blur-xl rounded-[28px] border border-slate-100/50 p-6 max-w-sm w-full max-h-[85vh] overflow-y-auto shadow-[0_24px_60px_rgba(0,102,204,0.15)] flex flex-col relative cursor-default text-left"
           >
             {/* Close button */}
             <button 
@@ -308,22 +396,22 @@ export const ProfileSetup: React.FC = () => {
 
             {/* Modal Title */}
             <div className="mb-6 text-center">
-              <span className="font-label-caps text-[10px] text-primary tracking-widest block mb-1">Preferences</span>
-              <h2 className="text-xl font-bold text-slate-900">Settings &amp; Privacy</h2>
-              <p className="text-[10px] text-slate-400 mt-0.5">Manage your clinical profile, security, and privacy.</p>
+              <span className="font-label-caps text-xs text-primary tracking-widest block mb-1">Preferences</span>
+              <h2 className="text-2xl font-bold text-slate-900">Settings &amp; Privacy</h2>
+              <p className="text-xs text-slate-400 mt-1">Manage your clinical profile, security, and privacy.</p>
             </div>
 
             <div className="space-y-6 flex-1 pr-1">
               {/* Category: Privacy */}
               <section className="space-y-2.5">
-                <h3 className="font-title-md text-xs text-primary font-semibold px-1">Privacy &amp; Visibility</h3>
+                <h3 className="font-title-md text-sm text-primary font-bold px-1">Privacy &amp; Visibility</h3>
                 <div className="bg-white/90 border border-slate-100 rounded-[20px] shadow-sm divide-y divide-slate-100">
                   
                   {/* Vitals Toggle */}
                   <div className="p-4 flex justify-between items-center hover:bg-slate-50/50 transition-colors">
                     <div>
-                      <div className="font-semibold text-xs text-slate-900">Vitals &amp; Demographics</div>
-                      <div className="text-[10px] text-slate-400 mt-0.5">Age, Gender, Blood Group, Height, Weight</div>
+                      <div className="font-semibold text-sm text-slate-900">Vitals &amp; Demographics</div>
+                      <div className="text-xs text-slate-400 mt-0.5">Age, Gender, Blood Group, Height, Weight</div>
                     </div>
                     <label className="relative inline-flex items-center cursor-pointer">
                       <input 
@@ -339,8 +427,8 @@ export const ProfileSetup: React.FC = () => {
                   {/* Conditions Toggle */}
                   <div className="p-4 flex justify-between items-center hover:bg-slate-50/50 transition-colors">
                     <div>
-                      <div className="font-semibold text-xs text-slate-900">Medical Conditions</div>
-                      <div className="text-[10px] text-slate-400 mt-0.5">Chronic or active clinical conditions</div>
+                      <div className="font-semibold text-sm text-slate-900">Medical Conditions</div>
+                      <div className="text-xs text-slate-400 mt-0.5">Chronic or active clinical conditions</div>
                     </div>
                     <label className="relative inline-flex items-center cursor-pointer">
                       <input 
@@ -356,8 +444,8 @@ export const ProfileSetup: React.FC = () => {
                   {/* Allergies Toggle */}
                   <div className="p-4 flex justify-between items-center hover:bg-slate-50/50 transition-colors">
                     <div>
-                      <div className="font-semibold text-xs text-slate-900">Documented Allergies</div>
-                      <div className="text-[10px] text-slate-400 mt-0.5">Severe reactions, anaphylaxis alerts</div>
+                      <div className="font-semibold text-sm text-slate-900">Documented Allergies</div>
+                      <div className="text-xs text-slate-400 mt-0.5">Severe reactions, anaphylaxis alerts</div>
                     </div>
                     <label className="relative inline-flex items-center cursor-pointer">
                       <input 
@@ -373,8 +461,8 @@ export const ProfileSetup: React.FC = () => {
                   {/* Medications Toggle */}
                   <div className="p-4 flex justify-between items-center hover:bg-slate-50/50 transition-colors">
                     <div>
-                      <div className="font-semibold text-xs text-slate-900">Active Medications</div>
-                      <div className="text-[10px] text-slate-400 mt-0.5">Current prescriptions, dosages &amp; schedule</div>
+                      <div className="font-semibold text-sm text-slate-900">Active Medications</div>
+                      <div className="text-xs text-slate-400 mt-0.5">Current prescriptions, dosages &amp; schedule</div>
                     </div>
                     <label className="relative inline-flex items-center cursor-pointer">
                       <input 
@@ -390,8 +478,8 @@ export const ProfileSetup: React.FC = () => {
                   {/* Contacts Toggle */}
                   <div className="p-4 flex justify-between items-center hover:bg-slate-50/50 transition-colors">
                     <div>
-                      <div className="font-semibold text-xs text-slate-900">Emergency Contacts</div>
-                      <div className="text-[10px] text-slate-400 mt-0.5">Immediate tap-to-call contacts info</div>
+                      <div className="font-semibold text-sm text-slate-900">Emergency Contacts</div>
+                      <div className="text-xs text-slate-400 mt-0.5">Immediate tap-to-call contacts info</div>
                     </div>
                     <label className="relative inline-flex items-center cursor-pointer">
                       <input 
@@ -409,7 +497,7 @@ export const ProfileSetup: React.FC = () => {
 
               {/* Category: Security */}
               <section className="space-y-2.5">
-                <h3 className="font-title-md text-xs text-primary font-semibold px-1">Security</h3>
+                <h3 className="font-title-md text-sm text-primary font-bold px-1">Security</h3>
                 <div className="bg-white/90 border border-slate-100 rounded-[20px] shadow-sm divide-y divide-slate-100">
                   <button 
                     type="button"
@@ -420,14 +508,14 @@ export const ProfileSetup: React.FC = () => {
                   >
                     <div className="flex items-center gap-3">
                       <div className="w-8 h-8 rounded-full bg-primary/10 flex items-center justify-center text-primary">
-                        <span className="material-symbols-outlined text-[16px]">security</span>
+                        <span className="material-symbols-outlined text-[18px]">security</span>
                       </div>
                       <div>
-                        <div className="font-semibold text-xs text-slate-900">Two-Factor Authentication</div>
-                        <div className="text-[10px] text-slate-400 mt-0.5">Currently enabled via SMS</div>
+                        <div className="font-semibold text-sm text-slate-900">Two-Factor Authentication</div>
+                        <div className="text-xs text-slate-400 mt-0.5">Currently enabled via SMS</div>
                       </div>
                     </div>
-                    <span className="material-symbols-outlined text-slate-400 text-[16px]">chevron_right</span>
+                    <span className="material-symbols-outlined text-slate-400 text-[18px]">chevron_right</span>
                   </button>
 
                   <button 
@@ -442,30 +530,30 @@ export const ProfileSetup: React.FC = () => {
                   >
                     <div className="flex items-center gap-3">
                       <div className="w-8 h-8 rounded-full bg-amber-500/10 flex items-center justify-center text-amber-700">
-                        <span className="material-symbols-outlined text-[16px]">qr_code</span>
+                        <span className="material-symbols-outlined text-[18px]">qr_code</span>
                       </div>
                       <div>
-                        <div className="font-semibold text-xs text-slate-900">Regenerate QR Key</div>
-                        <div className="text-[10px] text-slate-400 mt-0.5">Invalidate old printed codes</div>
+                        <div className="font-semibold text-sm text-slate-900">Regenerate QR Key</div>
+                        <div className="text-xs text-slate-400 mt-0.5">Invalidate old printed codes</div>
                       </div>
                     </div>
-                    <span className="material-symbols-outlined text-slate-400 text-[16px]">chevron_right</span>
+                    <span className="material-symbols-outlined text-slate-400 text-[18px]">chevron_right</span>
                   </button>
                 </div>
               </section>
 
               {/* Category: Account */}
               <section className="space-y-2.5">
-                <h3 className="font-title-md text-xs text-primary font-semibold px-1">Account</h3>
+                <h3 className="font-title-md text-sm text-primary font-bold px-1">Account</h3>
                 <div className="bg-white/90 border border-slate-100 rounded-[20px] shadow-sm divide-y divide-slate-100">
                   <div className="p-4 flex items-center justify-between">
                     <div className="flex items-center gap-3">
                       <div className="w-8 h-8 rounded-full bg-slate-100 flex items-center justify-center text-slate-500">
-                        <span className="material-symbols-outlined text-[16px]">mail</span>
+                        <span className="material-symbols-outlined text-[18px]">mail</span>
                       </div>
                       <div>
-                        <div className="font-semibold text-xs text-slate-900">Email Address</div>
-                        <div className="text-[10px] text-slate-400 mt-0.5">{user.email}</div>
+                        <div className="font-semibold text-sm text-slate-900">Email Address</div>
+                        <div className="text-xs text-slate-400 mt-0.5">{user.email}</div>
                       </div>
                     </div>
                   </div>
@@ -482,14 +570,14 @@ export const ProfileSetup: React.FC = () => {
                   >
                     <div className="flex items-center gap-3">
                       <div className="w-8 h-8 rounded-full bg-slate-100 flex items-center justify-center text-slate-500">
-                        <span className="material-symbols-outlined text-[16px]">phone_iphone</span>
+                        <span className="material-symbols-outlined text-[18px]">phone_iphone</span>
                       </div>
                       <div>
-                        <div className="font-semibold text-xs text-slate-900">Change Phone Number</div>
-                        <div className="text-[10px] text-slate-400 mt-0.5">{user.phone || 'Not linked'}</div>
+                        <div className="font-semibold text-sm text-slate-900">Change Phone Number</div>
+                        <div className="text-xs text-slate-400 mt-0.5">{user.phone || 'Not linked'}</div>
                       </div>
                     </div>
-                    <span className="material-symbols-outlined text-slate-400 text-[16px]">chevron_right</span>
+                    <span className="material-symbols-outlined text-slate-400 text-[18px]">chevron_right</span>
                   </button>
 
                   <button 
@@ -503,14 +591,14 @@ export const ProfileSetup: React.FC = () => {
                   >
                     <div className="flex items-center gap-3">
                       <div className="w-8 h-8 rounded-full bg-error/10 flex items-center justify-center text-error">
-                        <span className="material-symbols-outlined text-[16px]">delete_forever</span>
+                        <span className="material-symbols-outlined text-[18px]">delete_forever</span>
                       </div>
                       <div>
-                        <div className="font-semibold text-xs text-error">Delete Account</div>
-                        <div className="text-[10px] text-error/85 mt-0.5">Permanently erase medical data</div>
+                        <div className="font-semibold text-sm text-error">Delete Account</div>
+                        <div className="text-xs text-error/85 mt-0.5">Permanently erase medical data</div>
                       </div>
                     </div>
-                    <span className="material-symbols-outlined text-error/55 text-[16px]">chevron_right</span>
+                    <span className="material-symbols-outlined text-error/55 text-[18px]">chevron_right</span>
                   </button>
                 </div>
               </section>
@@ -519,15 +607,19 @@ export const ProfileSetup: React.FC = () => {
               <button
                 type="button"
                 onClick={handleLogout}
-                className="w-full mt-4 bg-error/10 hover:bg-error/20 active:scale-95 border border-error/20 text-error font-semibold rounded-xl py-3 flex justify-center items-center gap-2 transition-all duration-200 shadow-sm cursor-pointer text-xs"
+                className="w-full mt-4 bg-error/10 hover:bg-error/20 active:scale-95 border border-error/20 text-error font-semibold rounded-xl py-3 flex justify-center items-center gap-2 transition-all duration-200 shadow-sm cursor-pointer text-sm"
               >
-                <span className="material-symbols-outlined text-[16px]">logout</span>
+                <span className="material-symbols-outlined text-[18px]">logout</span>
                 Log Out
               </button>
             </div>
           </div>
         </div>
       )}
+      <canvas 
+        id="confetti-canvas" 
+        className="fixed inset-0 pointer-events-none z-[999] w-full h-full" 
+      />
     </div>
   );
 };
