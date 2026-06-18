@@ -50,6 +50,8 @@ export interface PatientRecord {
   height: string;
   weight: string;
   photo: string;
+  dateOfBirth: string;
+  mobileNumber: string;
   conditions: ConditionAllergyItem[];
   allergies: ConditionAllergyItem[];
   medications: Medication[];
@@ -87,6 +89,8 @@ export const createEmptyPatientRecord = (userId: string): PatientRecord => ({
   height: '',
   weight: '',
   photo: '',
+  dateOfBirth: '',
+  mobileNumber: '',
   conditions: [],
   allergies: [],
   medications: [],

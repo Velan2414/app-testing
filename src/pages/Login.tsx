@@ -6,7 +6,7 @@ import { Button } from '../components/Button';
 import { Input } from '../components/Input';
 import { InteractiveEye } from '../components/InteractiveEye';
 
-type AuthMode = 'login' | 'register' | 'verify-otp';
+type AuthMode = 'login' | 'register' | 'verify-otp' | 'forgot-password' | 'otp-login-verify';
 const PASSWORD_MIN_LENGTH = 8;
 
 const validatePassword = (password: string): string | null => {
@@ -28,6 +28,8 @@ export const Login: React.FC = () => {
     signUp,
     verifyOtp,
     resendOtp,
+    sendResetOtp,
+    resetPasswordLogin,
   } = useAuth();
   const navigate = useNavigate();
 
@@ -37,6 +39,8 @@ export const Login: React.FC = () => {
   const [confirmPassword, setConfirmPassword] = useState('');
   const [otpCode, setOtpCode] = useState('');
   const [showPassword, setShowPassword] = useState(false);
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
+  const [resetMethod, setResetMethod] = useState<'otp-login' | 'reset-password'>('otp-login');
   const [error, setError] = useState('');
   const [info, setInfo] = useState('');
   const [submitting, setSubmitting] = useState(false);
@@ -158,11 +162,73 @@ export const Login: React.FC = () => {
     setInfo('A new verification code has been sent to your email.');
   };
 
+  const handleSendResetOtp = async (e: React.FormEvent) => {
+    e.preventDefault();
+    resetMessages();
+
+    if (!email.trim()) {
+      setError('Please enter your email address');
+      return;
+    }
+
+    setSubmitting(true);
+    const { error: resetOtpError } = await sendResetOtp(email);
+    setSubmitting(false);
+
+    if (resetOtpError) {
+      setError(resetOtpError);
+      return;
+    }
+
+    setMode('otp-login-verify');
+    setInfo('A 6-digit access code has been sent to your email.');
+  };
+
+  const handleResetPasswordLoginSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    resetMessages();
+
+    if (otpCode.length !== 6 || !/^\d+$/.test(otpCode)) {
+      setError('Please enter a valid 6-digit OTP code');
+      return;
+    }
+
+    if (resetMethod === 'reset-password') {
+      const passwordError = validatePassword(password);
+      if (passwordError) {
+        setError(passwordError);
+        return;
+      }
+
+      if (password !== confirmPassword) {
+        setError('Passwords do not match');
+        return;
+      }
+    }
+
+    setSubmitting(true);
+    const { error: resetError } = await resetPasswordLogin(
+      email,
+      otpCode,
+      resetMethod === 'reset-password' ? password : undefined
+    );
+    setSubmitting(false);
+
+    if (resetError) {
+      setError(resetError);
+      return;
+    }
+
+    setInfo(resetMethod === 'reset-password' ? 'Password reset and signed in successfully!' : 'Signed in successfully using OTP!');
+  };
+
   const switchMode = (nextMode: AuthMode) => {
     setMode(nextMode);
     setPassword('');
     setConfirmPassword('');
     setOtpCode('');
+    setShowPassword(false);
+    setShowConfirmPassword(false);
     setFocusedField(null);
     resetMessages();
   };
@@ -255,12 +321,38 @@ export const Login: React.FC = () => {
                     </span>
                   </button>
                 </div>
+                
+                <div className="flex justify-end mt-1">
+                  <button
+                    type="button"
+                    onClick={() => switchMode('forgot-password')}
+                    className="text-xs text-primary font-semibold hover:underline cursor-pointer"
+                  >
+                    Forgot password?
+                  </button>
+                </div>
               </div>
 
               {error && (
                 <p className="mt-4 text-sm text-red-600 bg-red-500/10 border border-red-500/20 rounded-[12px] px-3 py-2">
                   {error}
                 </p>
+              )}
+              {error === 'Invalid email or password' && (
+                <div className="mt-4 p-3 bg-primary/10 border border-primary/20 rounded-[16px] text-xs text-center">
+                  <p className="text-on-surface mb-2 font-medium">Forgot your password or want to sign in directly?</p>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      resetMessages();
+                      switchMode('forgot-password');
+                    }}
+                    className="text-primary font-semibold hover:underline cursor-pointer flex items-center justify-center gap-1 mx-auto"
+                  >
+                    <span className="material-symbols-outlined text-[16px]">key</span>
+                    Reset Password / Login with OTP
+                  </button>
+                </div>
               )}
               {info && (
                 <p className="mt-4 text-sm text-primary bg-primary/10 border border-primary/20 rounded-[12px] px-3 py-2">
@@ -312,7 +404,7 @@ export const Login: React.FC = () => {
                 />
 
                 <Input
-                  type={showPassword ? 'text' : 'password'}
+                  type="password"
                   placeholder="Password (min 8 chars, letters + numbers)"
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
@@ -323,17 +415,29 @@ export const Login: React.FC = () => {
                   required
                 />
 
-                <Input
-                  type={showPassword ? 'text' : 'password'}
-                  placeholder="Confirm password"
-                  value={confirmPassword}
-                  onChange={(e) => setConfirmPassword(e.target.value)}
-                  onFocus={() => setFocusedField('confirmPassword')}
-                  onBlur={() => setFocusedField(null)}
-                  icon="lock_reset"
-                  autoComplete="new-password"
-                  required
-                />
+                <div className="relative">
+                  <Input
+                    type={showConfirmPassword ? 'text' : 'password'}
+                    placeholder="Confirm password"
+                    value={confirmPassword}
+                    onChange={(e) => setConfirmPassword(e.target.value)}
+                    onFocus={() => setFocusedField('confirmPassword')}
+                    onBlur={() => setFocusedField(null)}
+                    icon="lock_reset"
+                    autoComplete="new-password"
+                    required
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setShowConfirmPassword(!showConfirmPassword)}
+                    className="absolute right-12 top-1/2 -translate-y-1/2 text-on-surface-variant hover:text-primary cursor-pointer"
+                    aria-label={showConfirmPassword ? 'Hide password' : 'Show password'}
+                  >
+                    <span className="material-symbols-outlined text-[20px]">
+                      {showConfirmPassword ? 'visibility_off' : 'visibility'}
+                    </span>
+                  </button>
+                </div>
               </div>
 
               {error && (
@@ -423,6 +527,203 @@ export const Login: React.FC = () => {
                     disabled={submitting}
                   >
                     Resend OTP
+                  </button>
+                </div>
+                <div>
+                  <button
+                    type="button"
+                    onClick={() => switchMode('login')}
+                    className="text-primary font-semibold hover:underline cursor-pointer"
+                  >
+                    Back to Sign In
+                  </button>
+                </div>
+              </div>
+            </form>
+          )}
+
+          {mode === 'forgot-password' && (
+            <form onSubmit={handleSendResetOtp} className="flex flex-col w-full">
+              <h2 className="font-title-md text-title-md text-on-surface mb-2 text-center">Account Access</h2>
+              <p className="font-body-sm text-body-sm text-on-surface-variant mb-6 text-center">
+                Enter your email address to receive a secure 6-digit access code for OTP login or password reset.
+              </p>
+
+              <div className="space-y-4">
+                <Input
+                  type="email"
+                  placeholder="you@example.com"
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                  onFocus={() => setFocusedField('email')}
+                  onBlur={() => setFocusedField(null)}
+                  icon="mail"
+                  autoComplete="email"
+                  required
+                />
+              </div>
+
+              {error && (
+                <p className="mt-4 text-sm text-red-600 bg-red-500/10 border border-red-500/20 rounded-[12px] px-3 py-2">
+                  {error}
+                </p>
+              )}
+              {info && (
+                <p className="mt-4 text-sm text-primary bg-primary/10 border border-primary/20 rounded-[12px] px-3 py-2">
+                  {info}
+                </p>
+              )}
+
+              <Button
+                variant="primary"
+                type="submit"
+                className="w-full mt-6"
+                icon="send"
+                disabled={submitting}
+              >
+                {submitting ? 'Sending code...' : 'Send Access Code'}
+              </Button>
+
+              <div className="mt-6 text-center font-body-sm text-body-sm text-on-surface-variant">
+                <button
+                  type="button"
+                  onClick={() => switchMode('login')}
+                  className="text-primary font-semibold hover:underline cursor-pointer"
+                >
+                  Back to Sign In
+                </button>
+              </div>
+            </form>
+          )}
+
+          {mode === 'otp-login-verify' && (
+            <form onSubmit={handleResetPasswordLoginSubmit} className="flex flex-col w-full">
+              <h2 className="font-title-md text-title-md text-on-surface mb-2 text-center">Verify Access</h2>
+              <p className="font-body-sm text-body-sm text-on-surface-variant mb-4 text-center">
+                We sent a 6-digit access code to <strong>{email}</strong>.
+              </p>
+
+              {/* Segmented Control / Tabs */}
+              <div className="flex bg-surface-container-high rounded-[16px] p-1 mb-6 border border-transparent shadow-inner">
+                <button
+                  type="button"
+                  onClick={() => setResetMethod('otp-login')}
+                  className={`flex-1 text-center py-2 text-xs font-semibold rounded-[12px] transition-all duration-200 cursor-pointer ${
+                    resetMethod === 'otp-login'
+                      ? 'bg-white text-primary shadow-sm'
+                      : 'text-on-surface-variant hover:text-on-surface'
+                  }`}
+                >
+                  Direct Login with OTP
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setResetMethod('reset-password')}
+                  className={`flex-1 text-center py-2 text-xs font-semibold rounded-[12px] transition-all duration-200 cursor-pointer ${
+                    resetMethod === 'reset-password'
+                      ? 'bg-white text-primary shadow-sm'
+                      : 'text-on-surface-variant hover:text-on-surface'
+                  }`}
+                >
+                  Reset Password & Login
+                </button>
+              </div>
+
+              <div className="space-y-4">
+                <div>
+                  <label className="block text-xs font-medium text-on-surface-variant mb-1 ml-1">
+                    6-Digit Access Code
+                  </label>
+                  <Input
+                    type="text"
+                    maxLength={6}
+                    placeholder="6-digit code"
+                    value={otpCode}
+                    onChange={(e) => setOtpCode(e.target.value.replace(/\D/g, '').slice(0, 6))}
+                    onFocus={() => setFocusedField('otp')}
+                    onBlur={() => setFocusedField(null)}
+                    icon="lock"
+                    className="text-center tracking-widest text-xl font-bold font-mono"
+                    required
+                  />
+                </div>
+
+                {resetMethod === 'reset-password' && (
+                  <>
+                    <Input
+                      type="password"
+                      placeholder="New Password (min 8 chars, letters + numbers)"
+                      value={password}
+                      onChange={(e) => setPassword(e.target.value)}
+                      onFocus={() => setFocusedField('password')}
+                      onBlur={() => setFocusedField(null)}
+                      icon="lock"
+                      autoComplete="new-password"
+                      required
+                    />
+
+                    <div className="relative">
+                      <Input
+                        type={showConfirmPassword ? 'text' : 'password'}
+                        placeholder="Confirm new password"
+                        value={confirmPassword}
+                        onChange={(e) => setConfirmPassword(e.target.value)}
+                        onFocus={() => setFocusedField('confirmPassword')}
+                        onBlur={() => setFocusedField(null)}
+                        icon="lock_reset"
+                        autoComplete="new-password"
+                        required
+                      />
+                      <button
+                        type="button"
+                        onClick={() => setShowConfirmPassword(!showConfirmPassword)}
+                        className="absolute right-12 top-1/2 -translate-y-1/2 text-on-surface-variant hover:text-primary cursor-pointer"
+                        aria-label={showConfirmPassword ? 'Hide password' : 'Show password'}
+                      >
+                        <span className="material-symbols-outlined text-[20px]">
+                          {showConfirmPassword ? 'visibility_off' : 'visibility'}
+                        </span>
+                      </button>
+                    </div>
+                  </>
+                )}
+              </div>
+
+              {error && (
+                <p className="mt-4 text-sm text-red-600 bg-red-500/10 border border-red-500/20 rounded-[12px] px-3 py-2">
+                  {error}
+                </p>
+              )}
+              {info && (
+                <p className="mt-4 text-sm text-primary bg-primary/10 border border-primary/20 rounded-[12px] px-3 py-2">
+                  {info}
+                </p>
+              )}
+
+              <Button
+                variant="primary"
+                type="submit"
+                className="w-full mt-6"
+                icon={resetMethod === 'reset-password' ? 'published_with_changes' : 'login'}
+                disabled={submitting}
+              >
+                {submitting
+                  ? 'Verifying...'
+                  : resetMethod === 'reset-password'
+                  ? 'Reset Password & Sign In'
+                  : 'Sign In with OTP'}
+              </Button>
+
+              <div className="mt-6 flex flex-col gap-2 text-center font-body-sm text-body-sm text-on-surface-variant">
+                <div>
+                  Didn&apos;t receive the code?{' '}
+                  <button
+                    type="button"
+                    onClick={handleSendResetOtp}
+                    className="text-primary font-semibold hover:underline cursor-pointer"
+                    disabled={submitting}
+                  >
+                    Resend code
                   </button>
                 </div>
                 <div>

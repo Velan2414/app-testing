@@ -10,8 +10,14 @@ export const MainLayout: React.FC = () => {
 
   if (authLoading) {
     return (
-      <div className="bg-surface min-h-screen flex items-center justify-center">
-        <div className="w-10 h-10 border-2 border-primary border-t-transparent rounded-full animate-spin" />
+      <div className="min-h-screen bg-white flex items-center justify-center">
+        <div className="flex flex-col items-center gap-4">
+          <div className="w-12 h-12 rounded-xl bg-primary/5 border border-primary/10 flex items-center justify-center">
+            <span className="material-symbols-outlined text-primary text-[28px] filled-icon animate-pulse">qr_code_scanner</span>
+          </div>
+          <div className="w-6 h-6 border-2 border-primary border-t-transparent rounded-full animate-spin" />
+          <span className="text-xs text-slate-400 tracking-widest font-semibold uppercase">MediQR Loading...</span>
+        </div>
       </div>
     );
   }
@@ -25,11 +31,12 @@ export const MainLayout: React.FC = () => {
   }
 
   return (
-    <div className="flex h-screen w-screen overflow-hidden bg-surface relative">
-      {/* Ambient Background Pulses */}
+    <div className="flex h-screen w-screen overflow-hidden relative bg-white">
+      {/* Premium subtle light background overlay */}
       <div className="absolute inset-0 z-0 overflow-hidden pointer-events-none">
-        <div className="absolute w-[60vw] h-[60vw] md:w-[40vw] md:h-[40vw] rounded-full bg-primary-fixed-dim/20 blur-[100px] top-[-10%] left-[-10%]" />
-        <div className="absolute w-[50vw] h-[50vw] md:w-[30vw] md:h-[30vw] rounded-full bg-tertiary-container/10 blur-[80px] bottom-[-10%] right-[-10%]" />
+        {/* Soft, barely visible clean blue glow in top-left */}
+        <div className="absolute w-[40vw] h-[40vw] rounded-full opacity-[0.03] blur-[100px] top-[-10%] left-[-10%]"
+          style={{ background: 'radial-gradient(circle, var(--color-primary) 0%, transparent 75%)' }} />
       </div>
 
       {/* Desktop Sidebar */}

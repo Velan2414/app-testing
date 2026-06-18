@@ -172,6 +172,102 @@ app.post('/api/auth/login', async (req, res) => {
   }
 });
 
+// --- PASSWORD RESET / OTP LOGIN ENDPOINTS ---
+
+app.post('/api/auth/send-reset-otp', async (req, res) => {
+  if (!pool) return res.status(500).json({ error: 'Database connection not initialized.' });
+  const { email } = req.body || {};
+
+  if (!email) {
+    return res.status(400).json({ error: 'Email is required' });
+  }
+
+  try {
+    const result = await pool.query('SELECT * FROM users WHERE email = $1', [email]);
+    if (result.rows.length === 0) {
+      return res.status(400).json({ error: 'User with this email does not exist' });
+    }
+
+    const otp = Math.floor(100000 + Math.random() * 900000).toString();
+    await pool.query('UPDATE users SET otp_code = $1 WHERE email = $2', [otp, email]);
+
+    // Send reset OTP email
+    const mailOptions = {
+      from: `"MediQR Support" <${process.env.EMAIL_USER || 'no-reply@mediqr.com'}>`,
+      to: email,
+      subject: 'MediQR - Password Reset / OTP Login Code',
+      text: `Your password reset verification code is: ${otp}. It will expire in 10 minutes.`,
+      html: `
+        <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; border: 1px solid #e2e8f0; border-radius: 12px; background-color: #ffffff;">
+          <h2 style="color: #6366f1; text-align: center; font-size: 24px; margin-bottom: 20px;">MediQR Account Access</h2>
+          <p style="color: #334155; font-size: 16px; line-height: 1.5;">You requested an OTP verification code to log in or reset your password. Use the code below to sign in:</p>
+          <div style="background-color: #f8fafc; padding: 18px; text-align: center; border-radius: 8px; margin: 24px 0; font-size: 32px; font-weight: bold; letter-spacing: 6px; color: #4f46e5; border: 1px dashed #cbd5e1;">
+            ${otp}
+          </div>
+          <p style="color: #64748b; font-size: 12px; text-align: center; margin-top: 24px;">This code will expire in 10 minutes. If you did not request this, please secure your account.</p>
+        </div>
+      `,
+    };
+
+    console.log(`\n📨 [RESET OTP EMAIL LOG] To: ${email} | Code: ${otp}`);
+
+    if (process.env.EMAIL_USER && process.env.EMAIL_PASS) {
+      try {
+        await transporter.sendMail(mailOptions);
+      } catch (err) {
+        console.error('Failed to send Reset OTP Email:', err.message);
+      }
+    }
+
+    res.status(200).json({ success: true, error: null });
+  } catch (error) {
+    console.error('Send reset OTP error:', error);
+    res.status(500).json({ error: 'Internal Server Error' });
+  }
+});
+
+app.post('/api/auth/reset-password-login', async (req, res) => {
+  if (!pool) return res.status(500).json({ error: 'Database connection not initialized.' });
+  const { email, otp, newPassword } = req.body || {};
+
+  if (!email || !otp) {
+    return res.status(400).json({ error: 'Email and OTP code are required' });
+  }
+
+  try {
+    const result = await pool.query('SELECT * FROM users WHERE email = $1', [email]);
+    if (result.rows.length === 0) {
+      return res.status(400).json({ error: 'User not found' });
+    }
+
+    const user = result.rows[0];
+    if (user.otp_code !== otp) {
+      return res.status(400).json({ error: 'Invalid OTP verification code' });
+    }
+
+    // Update password if newPassword is provided
+    if (newPassword) {
+      const hash = await bcrypt.hash(newPassword, 10);
+      await pool.query(
+        'UPDATE users SET password_hash = $1, is_verified = TRUE, otp_code = NULL WHERE id = $2',
+        [hash, user.id]
+      );
+    } else {
+      // Just activate/verify and log in
+      await pool.query(
+        'UPDATE users SET is_verified = TRUE, otp_code = NULL WHERE id = $1',
+        [user.id]
+      );
+    }
+
+    const token = jwt.sign({ id: user.id, email: user.email }, JWT_SECRET, { expiresIn: '7d' });
+    res.status(200).json({ token, user: { id: user.id, email: user.email } });
+  } catch (error) {
+    console.error('Reset password/OTP login error:', error);
+    res.status(500).json({ error: 'Internal Server Error' });
+  }
+});
+
 app.post('/api/auth/verify-otp', async (req, res) => {
   if (!pool) return res.status(500).json({ error: 'Database connection not initialized.' });
   const { email, otp } = req.body || {};

@@ -17,6 +17,8 @@ export const ProfileSetup: React.FC = () => {
   const [age, setAge] = useState(user?.patientRecord.age || '');
   const [gender, setGender] = useState(user?.patientRecord.gender || '');
   const [photo, setPhoto] = useState(user?.patientRecord.photo || '');
+  const [dateOfBirth, setDateOfBirth] = useState(user?.patientRecord.dateOfBirth || '');
+  const [mobileNumber, setMobileNumber] = useState(user?.patientRecord.mobileNumber || '');
 
   const handlePhotoClick = () => {
     fileInputRef.current?.click();
@@ -30,6 +32,22 @@ export const ProfileSetup: React.FC = () => {
         setPhoto(reader.result as string);
       };
       reader.readAsDataURL(file);
+    }
+  };
+
+  // Auto-calculate age from DOB
+  const handleDobChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const dob = e.target.value;
+    setDateOfBirth(dob);
+    if (dob) {
+      const today = new Date();
+      const birth = new Date(dob);
+      let computedAge = today.getFullYear() - birth.getFullYear();
+      const m = today.getMonth() - birth.getMonth();
+      if (m < 0 || (m === 0 && today.getDate() < birth.getDate())) {
+        computedAge--;
+      }
+      if (computedAge > 0) setAge(String(computedAge));
     }
   };
 
@@ -49,6 +67,8 @@ export const ProfileSetup: React.FC = () => {
       age,
       gender,
       photo,
+      dateOfBirth,
+      mobileNumber,
       qrId
     });
 
@@ -109,6 +129,35 @@ export const ProfileSetup: React.FC = () => {
                 onChange={(e) => setName(e.target.value)}
                 icon="badge"
                 required
+              />
+            </div>
+
+            {/* Date of Birth */}
+            <div className="space-y-1.5">
+              <label className="font-label-caps text-[10px] text-on-surface-variant pl-1">
+                Date of Birth <span className="lowercase font-normal opacity-70">(auto-fills age)</span>
+              </label>
+              <div className="relative">
+                <span className="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-outline text-[18px] pointer-events-none">cake</span>
+                <input
+                  type="date"
+                  className="w-full rounded-[16px] py-3 pl-10 pr-4 font-body-lg text-sm bg-surface-container-high border border-transparent focus:bg-white/90 focus:border-primary/50 focus:ring-0 outline-none transition-all shadow-inner text-on-surface"
+                  value={dateOfBirth}
+                  onChange={handleDobChange}
+                  max={new Date().toISOString().split('T')[0]}
+                />
+              </div>
+            </div>
+
+            {/* Mobile Number */}
+            <div className="space-y-1.5">
+              <label className="font-label-caps text-[10px] text-on-surface-variant pl-1">Mobile Number</label>
+              <Input
+                type="tel"
+                placeholder="e.g. +91 98765 43210"
+                value={mobileNumber}
+                onChange={(e) => setMobileNumber(e.target.value)}
+                icon="phone"
               />
             </div>
 
@@ -219,6 +268,73 @@ export const ProfileSetup: React.FC = () => {
           </div>
         </form>
       </GlassCard>
+
+      {/* Database Schema Info Card */}
+      <div className="bg-slate-900/90 rounded-[20px] p-5 text-xs font-mono border border-slate-700/50 shadow-lg">
+        <div className="flex items-center gap-2 mb-3">
+          <span className="material-symbols-outlined text-emerald-400 text-[16px]">database</span>
+          <span className="text-emerald-400 font-bold text-[11px] tracking-wider">DATABASE TABLE: profiles</span>
+        </div>
+        <table className="w-full text-left border-collapse">
+          <thead>
+            <tr className="border-b border-slate-700">
+              <th className="text-slate-400 pb-2 pr-4 font-semibold">Column</th>
+              <th className="text-slate-400 pb-2 pr-4 font-semibold">Type</th>
+              <th className="text-slate-400 pb-2 font-semibold">Description</th>
+            </tr>
+          </thead>
+          <tbody className="text-slate-300">
+            <tr className="border-b border-slate-800/60">
+              <td className="py-1.5 pr-4 text-sky-400">user_id</td>
+              <td className="py-1.5 pr-4 text-amber-300">UUID</td>
+              <td className="py-1.5 opacity-70">Primary key, FK → users.id</td>
+            </tr>
+            <tr className="border-b border-slate-800/60">
+              <td className="py-1.5 pr-4 text-sky-400">phone</td>
+              <td className="py-1.5 pr-4 text-amber-300">VARCHAR(50)</td>
+              <td className="py-1.5 opacity-70">Direct phone column</td>
+            </tr>
+            <tr className="border-b border-slate-800/60">
+              <td className="py-1.5 pr-4 text-sky-400">patient_record</td>
+              <td className="py-1.5 pr-4 text-amber-300">JSONB</td>
+              <td className="py-1.5 opacity-70">All vitals incl. DOB, mobile</td>
+            </tr>
+            <tr className="border-b border-slate-800/60">
+              <td className="py-1.5 pr-4 text-emerald-400">  ↳ name</td>
+              <td className="py-1.5 pr-4 text-slate-400">string</td>
+              <td className="py-1.5 opacity-70">Full name</td>
+            </tr>
+            <tr className="border-b border-slate-800/60">
+              <td className="py-1.5 pr-4 text-emerald-400">  ↳ dateOfBirth</td>
+              <td className="py-1.5 pr-4 text-slate-400">string</td>
+              <td className="py-1.5 opacity-70 text-emerald-300/80">📌 New field (YYYY-MM-DD)</td>
+            </tr>
+            <tr className="border-b border-slate-800/60">
+              <td className="py-1.5 pr-4 text-emerald-400">  ↳ mobileNumber</td>
+              <td className="py-1.5 pr-4 text-slate-400">string</td>
+              <td className="py-1.5 opacity-70 text-emerald-300/80">📌 New field (phone no.)</td>
+            </tr>
+            <tr className="border-b border-slate-800/60">
+              <td className="py-1.5 pr-4 text-emerald-400">  ↳ age / gender</td>
+              <td className="py-1.5 pr-4 text-slate-400">string</td>
+              <td className="py-1.5 opacity-70">Demographics</td>
+            </tr>
+            <tr className="border-b border-slate-800/60">
+              <td className="py-1.5 pr-4 text-emerald-400">  ↳ bloodGroup</td>
+              <td className="py-1.5 pr-4 text-slate-400">string</td>
+              <td className="py-1.5 opacity-70">Blood type e.g. B+</td>
+            </tr>
+            <tr>
+              <td className="py-1.5 pr-4 text-sky-400">privacy_settings</td>
+              <td className="py-1.5 pr-4 text-amber-300">JSONB</td>
+              <td className="py-1.5 opacity-70">Visibility controls</td>
+            </tr>
+          </tbody>
+        </table>
+        <p className="text-slate-500 mt-3 text-[10px]">
+          * dateOfBirth and mobileNumber are stored inside the <span className="text-amber-300">patient_record</span> JSONB column — no SQL migration needed.
+        </p>
+      </div>
     </div>
   );
 };

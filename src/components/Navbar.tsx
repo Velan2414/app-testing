@@ -7,6 +7,8 @@ export const Navbar: React.FC = () => {
   const navigate = useNavigate();
   const location = useLocation();
 
+  const isDashboard = location.pathname.startsWith('/dashboard');
+
   const getPageTitle = (pathname: string) => {
     if (pathname.startsWith('/dashboard')) return 'Dashboard';
     if (pathname.startsWith('/profile/setup')) return 'Profile Setup';
@@ -27,49 +29,60 @@ export const Navbar: React.FC = () => {
   const unreadCount = notifications.filter((n: any) => n.unread).length || 0;
 
   return (
-    <header className="sticky top-0 z-30 w-full bg-white/60 backdrop-blur-md border-b border-white/40 px-6 py-4 flex items-center justify-between">
+    <header className="sticky top-0 z-30 w-full bg-white/80 backdrop-blur-md border-b border-slate-100 px-6 py-3 flex items-center justify-between shadow-sm">
       <div className="flex items-center gap-3">
-        <span className="material-symbols-outlined text-[28px] text-primary filled-icon">qr_code_scanner</span>
-        <h2 className="font-headline-lg-mobile text-primary tracking-tight md:hidden">{getPageTitle(location.pathname)}</h2>
-        <h2 className="font-title-md text-primary tracking-tight hidden md:block">MediQR &bull; {getPageTitle(location.pathname)}</h2>
+        {/* Beautiful clinical vector logo icon */}
+        <div className="w-9 h-9 rounded-xl bg-primary/5 border border-primary/10 flex items-center justify-center flex-shrink-0 shadow-sm">
+          <span className="material-symbols-outlined text-[20px] text-primary filled-icon">qr_code_scanner</span>
+        </div>
+        <h2 className="font-headline-lg-mobile text-primary tracking-tight md:hidden">
+          {getPageTitle(location.pathname)}
+        </h2>
+        <h2 className="font-title-md text-primary tracking-tight hidden md:block">
+          MediQR &bull; {getPageTitle(location.pathname)}
+        </h2>
       </div>
 
-      <div className="flex items-center gap-4">
-        {/* Notifications */}
-        <button 
-          onClick={() => navigate('/notifications')}
-          className="relative w-10 h-10 rounded-full bg-surface-container flex items-center justify-center text-on-surface-variant hover:bg-surface-variant/50 transition-colors cursor-pointer"
-        >
-          <span className="material-symbols-outlined text-[22px]">notifications</span>
-          {unreadCount > 0 && (
-            <span className="absolute top-1.5 right-1.5 w-4 h-4 bg-error text-white font-bold text-[9px] flex items-center justify-center rounded-full border-2 border-white">
-              {unreadCount}
-            </span>
-          )}
-        </button>
+      <div className="flex items-center gap-3">
+        {/* Show notifications & profile only on Dashboard */}
+        {isDashboard && (
+          <>
+            {/* Notifications */}
+            <button
+              onClick={() => navigate('/notifications')}
+              className="relative w-10 h-10 rounded-full bg-surface-container flex items-center justify-center text-on-surface-variant hover:bg-surface-variant/50 transition-all cursor-pointer hover:scale-105 active:scale-95"
+            >
+              <span className="material-symbols-outlined text-[22px]">notifications</span>
+              {unreadCount > 0 && (
+                <span className="absolute top-1.5 right-1.5 w-4 h-4 bg-error text-white font-bold text-[9px] flex items-center justify-center rounded-full border-2 border-white animate-pulse">
+                  {unreadCount}
+                </span>
+              )}
+            </button>
 
-        {/* Profile Initials / Dropdown / Logout */}
-        <div className="flex items-center gap-2">
-          <button 
-            onClick={() => navigate('/profile/setup')}
-            className="w-10 h-10 rounded-full bg-primary-container text-primary font-semibold flex items-center justify-center text-sm shadow-inner cursor-pointer"
-          >
-            {user?.patientRecord?.name
-              ? user.patientRecord.name.split(' ').map((n: string) => n[0]).join('')
-              : user?.email?.[0]?.toUpperCase() || 'U'}
-          </button>
-          
-          <button 
-            onClick={async () => {
-              await logout();
-              navigate('/login');
-            }}
-            className="w-10 h-10 rounded-full bg-surface-container flex items-center justify-center text-on-surface-variant hover:bg-red-50 hover:text-red-600 transition-colors cursor-pointer"
-            title="Log Out"
-          >
-            <span className="material-symbols-outlined text-[22px]">logout</span>
-          </button>
-        </div>
+            {/* Profile Initials */}
+            <button
+              onClick={() => navigate('/profile/setup')}
+              className="w-10 h-10 rounded-full bg-primary-container text-primary font-semibold flex items-center justify-center text-sm shadow-inner cursor-pointer hover:ring-2 hover:ring-primary/40 hover:scale-105 active:scale-95 transition-all"
+            >
+              {user?.patientRecord?.name
+                ? user.patientRecord.name.split(' ').map((n: string) => n[0]).join('').toUpperCase().slice(0, 2)
+                : user?.email?.[0]?.toUpperCase() || 'U'}
+            </button>
+          </>
+        )}
+
+        {/* Logout — always visible */}
+        <button
+          onClick={async () => {
+            await logout();
+            navigate('/login');
+          }}
+          className="w-10 h-10 rounded-full bg-surface-container flex items-center justify-center text-on-surface-variant hover:bg-red-50 hover:text-red-600 hover:scale-105 active:scale-95 transition-all cursor-pointer"
+          title="Log Out"
+        >
+          <span className="material-symbols-outlined text-[22px]">logout</span>
+        </button>
       </div>
     </header>
   );

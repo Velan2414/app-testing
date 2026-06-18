@@ -1,5 +1,6 @@
 import React, { useRef, useState, useEffect } from 'react';
 import jsQR from 'jsqr';
+import QRCode from 'qrcode';
 import { jsPDF } from 'jspdf';
 import { useAuth } from '../context/AuthContext';
 import { GlassCard } from '../components/GlassCard';
@@ -11,6 +12,7 @@ export const ScanQR: React.FC = () => {
   const { user } = useAuth();
   const fileInputRef = useRef<HTMLInputElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
+  const liveQrCanvasRef = useRef<HTMLCanvasElement>(null);
 
   // Real camera QR Scanner states and refs
   const videoRef = useRef<HTMLVideoElement>(null);
@@ -104,6 +106,26 @@ export const ScanQR: React.FC = () => {
   const [qrInput, setQrInput] = useState('');
   const [errorMsg, setErrorMsg] = useState('');
   const [successMsg, setSuccessMsg] = useState('');
+  const [liveQrText, setLiveQrText] = useState('');
+
+  // Live QR preview: generate QR on canvas whenever input changes
+  useEffect(() => {
+    const trimmed = liveQrText.trim();
+    if (!trimmed || !liveQrCanvasRef.current) return;
+    QRCode.toCanvas(
+      liveQrCanvasRef.current,
+      trimmed,
+      {
+        width: 200,
+        margin: 2,
+        color: { dark: '#181c1e', light: '#ffffff' },
+      },
+      (err) => {
+        if (err) console.error('Live QR error', err);
+      }
+    );
+  }, [liveQrText]);
+
 
   // Scanned record state for inline display
   const [scannedRecord, setScannedRecord] = useState<{ patientRecord: PatientRecord; privacySettings: PrivacySettings } | null>(null);
@@ -985,7 +1007,7 @@ export const ScanQR: React.FC = () => {
           <GlassCard className="p-5 flex flex-col gap-4">
             <h3 className="font-title-md text-sm text-on-surface font-semibold">Verify Link Manually</h3>
             <p className="text-xs text-on-surface-variant leading-relaxed">
-              If you copied your share link or key, paste it below to validate and load the report.
+              Paste a share link or patient ID below — QR preview generates live as you type.
             </p>
 
             <form onSubmit={handleManualSubmit} className="space-y-4">
@@ -993,10 +1015,24 @@ export const ScanQR: React.FC = () => {
                 type="text"
                 placeholder="Paste share link or enter ID..."
                 value={qrInput}
-                onChange={(e) => setQrInput(e.target.value)}
+                onChange={(e) => {
+                  setQrInput(e.target.value);
+                  setLiveQrText(e.target.value);
+                }}
                 icon="link"
                 required
               />
+
+              {/* Live QR Preview */}
+              {liveQrText.trim() && (
+                <div className="flex flex-col items-center gap-2 py-2 animate-fade-in">
+                  <span className="font-label-caps text-[9px] text-on-surface-variant tracking-widest">LIVE QR PREVIEW</span>
+                  <div className="p-3 bg-white rounded-[16px] shadow-md border border-outline-variant/30">
+                    <canvas ref={liveQrCanvasRef} className="block rounded-lg" />
+                  </div>
+                  <span className="text-[10px] text-on-surface-variant/70 italic">Updates instantly as you type</span>
+                </div>
+              )}
 
               <Button
                 variant="primary"

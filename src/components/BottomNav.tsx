@@ -29,7 +29,7 @@ const BottomNavItem: React.FC<BottomNavItemProps> = ({ to, icon, label }) => {
 
 export const BottomNav: React.FC = () => {
   return (
-    <nav className="fixed bottom-0 left-0 right-0 z-30 bg-white/70 backdrop-blur-md border-t border-white/40 flex items-center justify-around md:hidden shadow-lg pb-safe">
+    <nav className="fixed bottom-0 left-0 right-0 z-30 bg-white/95 backdrop-blur-md border-t border-slate-100 flex items-center justify-around md:hidden shadow-lg pb-safe">
       <BottomNavItem to="/dashboard" icon="dashboard" label="Home" />
       <BottomNavItem to="/documents" icon="description" label="Vault" />
       <BottomNavItem to="/qr/scan" icon="qr_code_scanner" label="Scan" />

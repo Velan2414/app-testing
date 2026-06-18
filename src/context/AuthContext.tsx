@@ -34,6 +34,8 @@ interface AuthContextType {
   verifyOtp: (email: string, otp: string) => Promise<{ error: string | null }>;
   resendOtp: (email: string) => Promise<{ error: string | null }>;
   signIn: (email: string, password: string) => Promise<{ error: string | null }>;
+  sendResetOtp: (email: string) => Promise<{ error: string | null }>;
+  resetPasswordLogin: (email: string, otp: string, newPassword?: string) => Promise<{ error: string | null }>;
   completeOnboarding: () => Promise<void>;
   logout: () => Promise<void>;
   updatePatientRecord: (record: Partial<PatientRecord>) => void;
@@ -371,6 +373,92 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
   };
 
+  const sendResetOtp = async (email: string): Promise<{ error: string | null }> => {
+    try {
+      const response = await fetch('/api/auth/send-reset-otp', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email: email.trim().toLowerCase() }),
+      });
+      
+      let data;
+      try {
+        data = await response.json();
+      } catch (e) {
+        data = { error: 'Server returned an invalid response.' };
+      }
+      
+      if (!response.ok) {
+        return { error: data.error || 'Failed to send OTP code' };
+      }
+      return { error: null };
+    } catch (err: unknown) {
+      if (err instanceof Error) {
+        return { error: err.message || 'Connection error' };
+      }
+      return { error: 'Connection error' };
+    }
+  };
+
+  const resetPasswordLogin = async (
+    email: string,
+    otp: string,
+    newPassword?: string
+  ): Promise<{ error: string | null }> => {
+    try {
+      const response = await fetch('/api/auth/reset-password-login', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          email: email.trim().toLowerCase(),
+          otp,
+          newPassword: newPassword ? newPassword : undefined
+        }),
+      });
+      
+      let data;
+      try {
+        data = await response.json();
+      } catch (e) {
+        data = { error: 'Server returned an invalid response.' };
+      }
+      
+      if (!response.ok) {
+        return { error: data.error || 'Authentication failed' };
+      }
+
+      localStorage.setItem('auth_token', data.token);
+      setPendingVerificationEmail(null);
+      localStorage.removeItem('pending_verification_email');
+      
+      const loggedUser: AuthUser = { uid: data.user.id, email: data.user.email };
+      setAuthUser(loggedUser);
+      setIsAuthenticated(true);
+      
+      let fetchedProfile = await fetchProfile(loggedUser.uid);
+      if (!fetchedProfile) {
+        fetchedProfile = {
+          email: loggedUser.email,
+          phone: '',
+          patientRecord: createEmptyPatientRecord(loggedUser.uid),
+          privacySettings: DEFAULT_PRIVACY_SETTINGS,
+          notifications: []
+        };
+      }
+      setUser(fetchedProfile);
+
+      const completed = await getOnboardingComplete(loggedUser.uid);
+      setOnboardingCompleteState(completed);
+
+      return { error: null };
+    } catch (err: unknown) {
+      if (err instanceof Error) {
+        return { error: err.message || 'Authentication error' };
+      }
+      return { error: 'Authentication error' };
+    }
+  };
+
   const completeOnboarding = async () => {
     if (authUser) {
       await setOnboardingComplete(authUser.uid);
@@ -577,6 +665,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         verifyOtp,
         resendOtp,
         signIn,
+        sendResetOtp,
+        resetPasswordLogin,
         completeOnboarding,
         logout,
         updatePatientRecord,

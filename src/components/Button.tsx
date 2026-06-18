@@ -20,7 +20,7 @@ export const Button: React.FC<ButtonProps> = ({
   
   const variantStyles = {
     primary: 'bg-gradient-to-r from-primary to-surface-tint text-white shadow-[0_4px_20px_rgba(0,61,155,0.25)] hover:shadow-[0_6px_25px_rgba(0,61,155,0.35)]',
-    secondary: 'bg-white/40 backdrop-blur-sm border border-white/80 text-primary hover:bg-white/60',
+    secondary: 'bg-slate-50 border border-slate-200 text-primary hover:bg-slate-100',
   };
 
   const padStyles = variant === 'primary' ? 'px-6 py-3.5' : 'px-6 py-3';

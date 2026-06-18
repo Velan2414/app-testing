@@ -21,14 +21,14 @@ export const Dashboard: React.FC = () => {
       {/* Active QR Status Card */}
       <div 
         onClick={() => navigate('/qr/my-code')}
-        className="bg-gradient-to-r from-amber-400/10 to-amber-600/10 backdrop-blur-[12px] border border-amber-500/40 shadow-[0_8px_32px_rgba(203,167,47,0.15)] rounded-[24px] p-6 flex items-center justify-between cursor-pointer hover:shadow-[0_12px_40px_rgba(203,167,47,0.2)] active:scale-[0.99] transition-all duration-300 relative overflow-hidden"
+        className="bg-gradient-to-r from-emerald-400/10 to-green-600/10 backdrop-blur-[12px] border border-emerald-500/40 shadow-[0_8px_32px_rgba(34,197,94,0.15)] rounded-[24px] p-6 flex items-center justify-between cursor-pointer hover:shadow-[0_12px_40px_rgba(34,197,94,0.25)] active:scale-[0.99] transition-all duration-300 relative overflow-hidden"
       >
-        <div className="absolute inset-0 border border-amber-400/20 rounded-[24px] pointer-events-none m-[2px]" />
+        <div className="absolute inset-0 border border-emerald-400/20 rounded-[24px] pointer-events-none m-[2px]" />
         
         <div className="flex flex-col gap-1">
           <div className="flex items-center gap-2">
-            <span className="material-symbols-outlined text-amber-600 filled-icon">verified_user</span>
-            <span className="font-title-md text-amber-700 font-semibold">Status: Active</span>
+            <span className="material-symbols-outlined text-emerald-600 filled-icon">verified_user</span>
+            <span className="font-title-md text-emerald-700 font-semibold">Status: Active</span>
           </div>
           <p className="font-body-sm text-body-sm text-on-surface-variant/80">Your medical profile is ready for scanning.</p>
         </div>

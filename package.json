@@ -10,7 +10,8 @@
     "build": "tsc -b && vite build",
     "lint": "eslint .",
     "preview": "vite preview",
-    "start": "node api/index.js"
+    "start": "node api/index.js",
+    "test:api": "node backend/run_endpoint_tests.js"
   },
   "dependencies": {
     "@tailwindcss/vite": "^4.3.1",
