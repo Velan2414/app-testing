@@ -245,13 +245,13 @@ export const Login: React.FC = () => {
   }
 
   return (
-    <div className="bg-surface min-h-screen relative font-sans antialiased text-on-surface overflow-y-auto flex flex-col items-center justify-center py-6">
+    <div className="bg-surface min-h-screen relative font-sans antialiased text-on-surface overflow-y-auto flex flex-col items-center py-6">
       <div className="absolute inset-0 z-0 overflow-hidden pointer-events-none">
         <div className="absolute top-[-10%] left-[-10%] w-[60%] h-[50%] bg-primary-fixed-dim/30 rounded-full blur-[100px] opacity-70" />
         <div className="absolute bottom-[-10%] right-[-10%] w-[70%] h-[60%] bg-surface-tint/10 rounded-full blur-[120px] opacity-80" />
       </div>
 
-      <main className="relative z-10 w-full max-w-md mx-auto px-container-padding-mobile flex flex-col justify-center py-8">
+      <main className="relative z-10 w-full max-w-md mx-auto px-container-padding-mobile flex flex-col justify-center my-auto py-8">
         <div className="flex flex-col items-center justify-center mb-8">
           <div className="w-16 h-16 rounded-full bg-white/60 backdrop-blur-md border border-white/50 shadow-sm flex items-center justify-center mb-4 relative overflow-hidden group">
             {/* Animated green/blue scanning line */}
