@@ -127,9 +127,37 @@ jobs:
           name: Appium-Mobile-Automation-Report
           path: MediQR_Appium_Mobile_Automation_Test_Report.xlsx
 
+  vulnerability-tests:
+    name: Run Vulnerability Tests
+    needs: verify-deployment
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install Dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install openpyxl
+
+      - name: Execute Vulnerability Security Test Suite & Generate Report
+        run: |
+          python generate_vulnerability_excel.py
+
+      - name: Upload Vulnerability Test Report Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: Vulnerability-Security-Report
+          path: MediQR_Vulnerability_Security_Test_Report.xlsx
+
   verify-all-tests:
     name: Verify All Tests & Generate Reports
-    needs: [backend-tests, selenium-tests, appium-tests]
+    needs: [backend-tests, selenium-tests, appium-tests, vulnerability-tests]
     runs-on: ubuntu-latest
     steps:
       - name: Checkout Repository
@@ -143,16 +171,6 @@ jobs:
       - name: Install Dependencies
         run: |
           pip install openpyxl
-
-      - name: Execute Vulnerability Security Test Suite & Generate Report
-        run: |
-          python generate_vulnerability_excel.py
-
-      - name: Upload Vulnerability Test Report Artifact
-        uses: actions/upload-artifact@v4
-        with:
-          name: Vulnerability-Security-Report
-          path: MediQR_Vulnerability_Security_Test_Report.xlsx
 
       - name: Generate Automated Test Verification Dashboard Summary
         run: |
@@ -180,6 +198,7 @@ jobs:
           | 📱 **Appium Mobile E2E Report** | 435 | 435 | 0 | **100.0%** | :white_check_mark: PASSED |
           | 🛡️ **Vulnerability Security Report** | 420 | 420 | 0 | **100.0%** | :white_check_mark: PASSED |
           EOF
+
 
 
   load-tests:
