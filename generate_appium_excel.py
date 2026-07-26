@@ -227,9 +227,12 @@ def generate_appium_excel():
     ws_tests.column_dimensions['H'].width = 42
     ws_tests.column_dimensions['I'].width = 42
 
-    file_path = "c:\\Users\\Velan Ramesh\\Downloads\\final_MediQR\\fullweb_MediQR\\MediQR_Appium_Mobile_Automation_Test_Report.xlsx"
+    import os
+    output_dir = os.path.dirname(os.path.abspath(__file__))
+    file_path = os.path.join(output_dir, "MediQR_Appium_Mobile_Automation_Test_Report.xlsx")
     wb.save(file_path)
     print(f"Successfully generated {total_generated} Appium test cases in {file_path}")
 
 if __name__ == "__main__":
     generate_appium_excel()
+

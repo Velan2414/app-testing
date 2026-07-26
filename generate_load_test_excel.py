@@ -259,9 +259,12 @@ def generate_load_test_excel():
     ws_tests.column_dimensions['K'].width = 42
     ws_tests.column_dimensions['L'].width = 42
 
-    file_path = "c:\\Users\\Velan Ramesh\\Downloads\\final_MediQR\\fullweb_MediQR\\MediQR_Load_Testing_Results.xlsx"
+    import os
+    output_dir = os.path.dirname(os.path.abspath(__file__))
+    file_path = os.path.join(output_dir, "MediQR_Load_Testing_Results.xlsx")
     wb.save(file_path)
     print(f"Successfully generated {total_generated} test cases in {file_path}")
 
 if __name__ == "__main__":
     generate_load_test_excel()
+
