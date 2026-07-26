@@ -59,25 +59,45 @@ jobs:
       - name: Checkout Repository
         uses: actions/checkout@v4
 
+      - name: Setup Node.js Environment
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Install Application Dependencies & Build App
+        run: |
+          npm ci || npm install
+          npm run build
+
       - name: Setup Python
         uses: actions/setup-python@v5
         with:
           python-version: '3.11'
 
-      - name: Install Python Excel Dependencies
+      - name: Install Python & Selenium Dependencies
         run: |
           python -m pip install --upgrade pip
-          pip install openpyxl
+          pip install openpyxl selenium webdriver-manager
 
-      - name: Execute Selenium E2E Test Suite & Generate Excel Report
+      - name: Start MediQR Backend API & Frontend Application
         run: |
-          python generate_selenium_excel.py
+          node api/index.js &
+          API_PID=$!
+          npx vite preview --port 5173 --host &
+          APP_PID=$!
+          echo "Backend running (PID: $API_PID), Frontend running (PID: $APP_PID)"
+          sleep 4
+
+      - name: Execute Panel-by-Panel Selenium E2E Test Suite & Generate Excel Report
+        run: |
+          python run_selenium_e2e_tests.py
 
       - name: Upload Selenium Test Report Artifact
         uses: actions/upload-artifact@v4
         with:
           name: Selenium-E2E-Automation-Report
           path: MediQR_Selenium_Automation_Test_Report.xlsx
+
 
   appium-tests:
     name: Run Appium Mobile Tests

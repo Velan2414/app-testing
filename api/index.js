@@ -70,8 +70,18 @@ app.use(express.json());
 
 app.use((req, res, next) => {
   if (!req.body) req.body = {};
+  const start = Date.now();
+  const timestamp = new Date().toISOString();
+  
+  res.on('finish', () => {
+    const duration = Date.now() - start;
+    const emailInfo = req.body.email ? ` | User: ${req.body.email}` : '';
+    const secretInfo = req.body.secret ? ` | Admin Secret: ***` : '';
+    console.log(`📡 [BACKEND API LOG] [${timestamp}] ${req.method} ${req.originalUrl || req.url} -> ${res.statusCode} (${duration}ms)${emailInfo}${secretInfo}`);
+  });
   next();
 });
+
 
 // --- Database connection ---
 let pool;

@@ -1,3 +1,4 @@
+import os
 import openpyxl
 from openpyxl.styles import Font, PatternFill, Alignment, Border, Side
 from openpyxl.utils import get_column_letter
@@ -233,9 +234,12 @@ def generate_selenium_excel():
     ws_tests.column_dimensions['H'].width = 38
     ws_tests.column_dimensions['I'].width = 38
 
-    file_path = "c:\\Users\\Velan Ramesh\\Downloads\\final_MediQR\\fullweb_MediQR\\MediQR_Selenium_Automation_Test_Report.xlsx"
+    output_dir = os.path.dirname(os.path.abspath(__file__))
+    file_path = os.path.join(output_dir, "MediQR_Selenium_Automation_Test_Report.xlsx")
     wb.save(file_path)
     print(f"Successfully generated {total_generated} Selenium test cases in {file_path}")
+    return file_path
 
 if __name__ == "__main__":
     generate_selenium_excel()
+

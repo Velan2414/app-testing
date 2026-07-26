@@ -26,3 +26,6 @@ dist-ssr
 
 .vercel
 .env*
+__pycache__/
+git_portable/
+*.apk
