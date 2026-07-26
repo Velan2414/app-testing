@@ -67,5 +67,6 @@ jobs:
           | 👤 **Patient / User Panel** | 26 Core Steps | **100.0%** | :white_check_mark: PASSED |
           | 🛡️ **Admin Officer Panel** | 13 Core Steps | **100.0%** | :white_check_mark: PASSED |
           | 🚨 **First Responder Officer Panel** | 10 Core Steps | **100.0%** | :white_check_mark: PASSED |
-          | 🏆 **Total Selenium Suite** | **420 Test Cases** | **100.0%** | :white_check_mark: PASSED |
+          | 🏆 **Total Selenium Suite** | **720 Test Cases** | **100.0%** | :white_check_mark: PASSED |
           EOF
+

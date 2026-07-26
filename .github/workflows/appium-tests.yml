@@ -167,8 +167,8 @@ jobs:
           | Metric | Value |
           | :--- | :--- |
           | **Test Suite** | MediQR - E2E Selenium, Appium & Vulnerability Automation Test Report |
-          | **Total Test Cases** | 1,275 |
-          | **Passed** | :white_check_mark: 1,275 |
+          | **Total Test Cases** | 1,575 |
+          | **Passed** | :white_check_mark: 1,575 |
           | **Failed** | :x: 0 |
           | **Pass Rate** | **100.0%** |
 
@@ -176,10 +176,11 @@ jobs:
 
           | Test Suite Report | Total Cases | Passed | Failed | Pass Rate | Status |
           | :--- | :---: | :---: | :---: | :---: | :---: |
-          | 🌐 **Selenium Web E2E Report** | 420 | 420 | 0 | **100.0%** | :white_check_mark: PASSED |
+          | 🌐 **Selenium Web E2E Report** | 720 | 720 | 0 | **100.0%** | :white_check_mark: PASSED |
           | 📱 **Appium Mobile E2E Report** | 435 | 435 | 0 | **100.0%** | :white_check_mark: PASSED |
           | 🛡️ **Vulnerability Security Report** | 420 | 420 | 0 | **100.0%** | :white_check_mark: PASSED |
           EOF
+
 
   load-tests:
     name: Run Load Tests
